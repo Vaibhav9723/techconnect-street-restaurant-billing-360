@@ -64,14 +64,14 @@ export default function Billing() {
     await setProducts(updatedProducts);
   };
 
-  const updateQuantity = (productId: string, delta: number) => {
+  const updateQuantity = async (productId: string, delta: number) => {
     const item = cart.find(i => i.productId === productId);
     if (!item) return;
 
     const newQuantity = item.quantity + delta;
     
     if (newQuantity <= 0) {
-      removeFromCart(productId);
+      await removeFromCart(productId);
       return;
     }
 
@@ -80,13 +80,35 @@ export default function Billing() {
         ? { ...item, quantity: newQuantity, total: newQuantity * item.price }
         : item
     ));
+
+    const updatedProducts = products.map((p: Product) =>
+      p.id === productId ? { ...p, addCount: Math.max(0, (p.addCount || 0) + delta) } : p
+    );
+    await setProducts(updatedProducts);
   };
 
-  const removeFromCart = (productId: string) => {
+  const removeFromCart = async (productId: string) => {
+    const item = cart.find(i => i.productId === productId);
+    if (!item) return;
+
     setCart(cart.filter(item => item.productId !== productId));
+
+    const updatedProducts = products.map((p: Product) =>
+      p.id === productId ? { ...p, addCount: Math.max(0, (p.addCount || 0) - item.quantity) } : p
+    );
+    await setProducts(updatedProducts);
   };
 
-  const clearCart = () => {
+  const clearCart = async () => {
+    const updatedProducts = products.map((p: Product) => {
+      const cartItem = cart.find(item => item.productId === p.id);
+      if (cartItem) {
+        return { ...p, addCount: Math.max(0, (p.addCount || 0) - cartItem.quantity) };
+      }
+      return p;
+    });
+    await setProducts(updatedProducts);
+
     setCart([]);
     setDiscount(0);
   };
@@ -135,8 +157,19 @@ export default function Billing() {
     };
 
     await setBills([newBill, ...bills]);
+
+    const updatedProducts = products.map((p: Product) => {
+      const cartItem = cart.find(item => item.productId === p.id);
+      if (cartItem) {
+        return { ...p, addCount: Math.max(0, (p.addCount || 0) - cartItem.quantity) };
+      }
+      return p;
+    });
+    await setProducts(updatedProducts);
+
     setCompletedBill(newBill);
-    clearCart();
+    setCart([]);
+    setDiscount(0);
 
     toast({
       title: 'Checkout successful',
