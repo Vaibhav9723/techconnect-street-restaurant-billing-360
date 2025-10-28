@@ -9,6 +9,7 @@ import {
   TrendingUp,
   Calendar,
   FileText,
+  Award,
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays, isWithinInterval } from 'date-fns';
 import { Bill } from '@shared/schema';
@@ -70,6 +71,31 @@ export default function Dashboard() {
     );
 
     return { totalSales, totalBills, avgBill, totalItems };
+  }, [filteredBills]);
+
+  const topSellingProducts = useMemo(() => {
+    const productSales = new Map<string, { name: string; quantity: number; revenue: number }>();
+
+    filteredBills.forEach((bill: Bill) => {
+      bill.items.forEach((item) => {
+        const existing = productSales.get(item.productId);
+        if (existing) {
+          existing.quantity += item.quantity;
+          existing.revenue += item.total;
+        } else {
+          productSales.set(item.productId, {
+            name: item.productName,
+            quantity: item.quantity,
+            revenue: item.total,
+          });
+        }
+      });
+    });
+
+    return Array.from(productSales.entries())
+      .map(([id, data]) => ({ id, ...data }))
+      .sort((a, b) => b.quantity - a.quantity)
+      .slice(0, 5);
   }, [filteredBills]);
 
   const filterOptions = [
@@ -188,6 +214,40 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Top Selling Products */}
+      {topSellingProducts.length > 0 && (
+        <Card className="p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Award className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold">Top Selling Products</h2>
+          </div>
+          
+          <div className="space-y-3">
+            {topSellingProducts.map((product, index) => (
+              <div
+                key={product.id}
+                className="flex items-center gap-4 p-3 rounded-lg bg-muted/30"
+                data-testid={`top-product-${product.id}`}
+              >
+                <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center font-bold text-primary">
+                  #{index + 1}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium truncate">{product.name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {product.quantity} sold
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold tabular-nums">₹{product.revenue.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">revenue</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Bills Table */}
       <Card className="p-6">
