@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from './useAuth';
 import { encryptJSON, decryptJSON } from '@/utils/crypto';
 import { STORAGE_KEYS } from '@/utils/storage';
@@ -8,6 +8,7 @@ export function useEncryptedStorage<T>(
   defaultValue: T
 ) {
   const { cryptoKey, isUnlocked } = useAuth();
+  const defaultValueRef = useRef(defaultValue);
   const [data, setData] = useState<T>(defaultValue);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -15,7 +16,7 @@ export function useEncryptedStorage<T>(
   // Load encrypted data
   const loadData = useCallback(async () => {
     if (!cryptoKey || !isUnlocked) {
-      setData(defaultValue);
+      setData(defaultValueRef.current);
       setIsLoading(false);
       return;
     }
@@ -26,7 +27,7 @@ export function useEncryptedStorage<T>(
 
       if (!encryptedStr) {
         // No data yet, use default
-        setData(defaultValue);
+        setData(defaultValueRef.current);
         setError(null);
       } else {
         // Decrypt existing data
@@ -38,11 +39,11 @@ export function useEncryptedStorage<T>(
     } catch (err) {
       console.error(`Error loading ${storageKey}:`, err);
       setError('Failed to decrypt data');
-      setData(defaultValue);
+      setData(defaultValueRef.current);
     } finally {
       setIsLoading(false);
     }
-  }, [cryptoKey, isUnlocked, storageKey, defaultValue]);
+  }, [cryptoKey, isUnlocked, storageKey]);
 
   // Save encrypted data
   const saveData = useCallback(async (newData: T) => {
