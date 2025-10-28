@@ -38,7 +38,11 @@ export default function Billing() {
     return categories.find((c: Category) => c.id === categoryId)?.name || 'Unknown';
   };
 
-  const addToCart = async (product: Product) => {
+  const getCartQuantity = (productId: string) => {
+    return cart.find(item => item.productId === productId)?.quantity || 0;
+  };
+
+  const addToCart = (product: Product) => {
     const existing = cart.find(item => item.productId === product.id);
     
     if (existing) {
@@ -56,22 +60,16 @@ export default function Billing() {
         total: product.price,
       }]);
     }
-
-    // Update product addCount
-    const updatedProducts = products.map((p: Product) =>
-      p.id === product.id ? { ...p, addCount: (p.addCount || 0) + 1 } : p
-    );
-    await setProducts(updatedProducts);
   };
 
-  const updateQuantity = async (productId: string, delta: number) => {
+  const updateQuantity = (productId: string, delta: number) => {
     const item = cart.find(i => i.productId === productId);
     if (!item) return;
 
     const newQuantity = item.quantity + delta;
     
     if (newQuantity <= 0) {
-      await removeFromCart(productId);
+      removeFromCart(productId);
       return;
     }
 
@@ -80,35 +78,13 @@ export default function Billing() {
         ? { ...item, quantity: newQuantity, total: newQuantity * item.price }
         : item
     ));
-
-    const updatedProducts = products.map((p: Product) =>
-      p.id === productId ? { ...p, addCount: Math.max(0, (p.addCount || 0) + delta) } : p
-    );
-    await setProducts(updatedProducts);
   };
 
-  const removeFromCart = async (productId: string) => {
-    const item = cart.find(i => i.productId === productId);
-    if (!item) return;
-
+  const removeFromCart = (productId: string) => {
     setCart(cart.filter(item => item.productId !== productId));
-
-    const updatedProducts = products.map((p: Product) =>
-      p.id === productId ? { ...p, addCount: Math.max(0, (p.addCount || 0) - item.quantity) } : p
-    );
-    await setProducts(updatedProducts);
   };
 
-  const clearCart = async () => {
-    const updatedProducts = products.map((p: Product) => {
-      const cartItem = cart.find(item => item.productId === p.id);
-      if (cartItem) {
-        return { ...p, addCount: Math.max(0, (p.addCount || 0) - cartItem.quantity) };
-      }
-      return p;
-    });
-    await setProducts(updatedProducts);
-
+  const clearCart = () => {
     setCart([]);
     setDiscount(0);
   };
@@ -157,16 +133,6 @@ export default function Billing() {
     };
 
     await setBills([newBill, ...bills]);
-
-    const updatedProducts = products.map((p: Product) => {
-      const cartItem = cart.find(item => item.productId === p.id);
-      if (cartItem) {
-        return { ...p, addCount: Math.max(0, (p.addCount || 0) - cartItem.quantity) };
-      }
-      return p;
-    });
-    await setProducts(updatedProducts);
-
     setCompletedBill(newBill);
     setCart([]);
     setDiscount(0);
@@ -226,19 +192,21 @@ export default function Billing() {
               </div>
             ) : (
               <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {filteredProducts.map((product: Product) => (
+                {filteredProducts.map((product: Product) => {
+                  const cartQty = getCartQuantity(product.id);
+                  return (
                   <Card
                     key={product.id}
                     className="h-44 p-3 flex flex-col justify-between relative hover-elevate cursor-pointer"
                     onClick={() => addToCart(product)}
                     data-testid={`product-card-${product.id}`}
                   >
-                    {product.addCount > 0 && (
+                    {cartQty > 0 && (
                       <Badge
                         className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0 text-xs font-bold"
                         data-testid={`product-badge-${product.id}`}
                       >
-                        {product.addCount}
+                        {cartQty}
                       </Badge>
                     )}
 
@@ -268,7 +236,8 @@ export default function Billing() {
                       </Button>
                     </div>
                   </Card>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -474,15 +443,17 @@ export default function Billing() {
 
               <div className="flex-1 overflow-y-auto">
                 <div className="grid grid-cols-2 gap-3 pb-20">
-                  {filteredProducts.map((product: Product) => (
+                  {filteredProducts.map((product: Product) => {
+                    const cartQty = getCartQuantity(product.id);
+                    return (
                     <Card
                       key={product.id}
                       className="h-44 p-3 flex flex-col justify-between relative hover-elevate active-elevate-2"
                       onClick={() => addToCart(product)}
                     >
-                      {product.addCount > 0 && (
+                      {cartQty > 0 && (
                         <Badge className="absolute -top-2 -right-2 h-6 w-6 rounded-full flex items-center justify-center p-0 text-xs font-bold">
-                          {product.addCount}
+                          {cartQty}
                         </Badge>
                       )}
 
@@ -504,7 +475,8 @@ export default function Billing() {
                         </Button>
                       </div>
                     </Card>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
