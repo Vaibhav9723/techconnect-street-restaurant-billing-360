@@ -157,59 +157,59 @@ export default function Dashboard() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Sales</p>
-              <p className="text-3xl font-bold tabular-nums mt-2" data-testid="stat-total-sales">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+        <Card className="p-3 sm:p-6">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-muted-foreground">Total Sales</p>
+              <p className="text-lg sm:text-2xl lg:text-3xl font-bold tabular-nums mt-1 sm:mt-2 truncate" data-testid="stat-total-sales">
                 ₹{stats.totalSales.toFixed(2)}
               </p>
             </div>
-            <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <DollarSign className="h-5 w-5 text-primary" />
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             </div>
           </div>
         </Card>
 
-        <Card className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Total Bills</p>
-              <p className="text-3xl font-bold tabular-nums mt-2" data-testid="stat-total-bills">
+        <Card className="p-3 sm:p-6">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-muted-foreground">Total Bills</p>
+              <p className="text-lg sm:text-2xl lg:text-3xl font-bold tabular-nums mt-1 sm:mt-2 truncate" data-testid="stat-total-bills">
                 {stats.totalBills}
               </p>
             </div>
-            <div className="h-10 w-10 rounded-lg bg-chart-2/10 flex items-center justify-center">
-              <FileText className="h-5 w-5 text-chart-2" />
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-chart-2/10 flex items-center justify-center flex-shrink-0">
+              <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-chart-2" />
             </div>
           </div>
         </Card>
 
-        <Card className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Avg Bill</p>
-              <p className="text-3xl font-bold tabular-nums mt-2" data-testid="stat-avg-bill">
+        <Card className="p-3 sm:p-6">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-muted-foreground">Avg Bill</p>
+              <p className="text-lg sm:text-2xl lg:text-3xl font-bold tabular-nums mt-1 sm:mt-2 truncate" data-testid="stat-avg-bill">
                 ₹{stats.avgBill.toFixed(2)}
               </p>
             </div>
-            <div className="h-10 w-10 rounded-lg bg-chart-3/10 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-chart-3" />
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-chart-3/10 flex items-center justify-center flex-shrink-0">
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-chart-3" />
             </div>
           </div>
         </Card>
 
-        <Card className="p-6">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">Items Sold</p>
-              <p className="text-3xl font-bold tabular-nums mt-2" data-testid="stat-items-sold">
+        <Card className="p-3 sm:p-6">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-muted-foreground">Items Sold</p>
+              <p className="text-lg sm:text-2xl lg:text-3xl font-bold tabular-nums mt-1 sm:mt-2 truncate" data-testid="stat-items-sold">
                 {stats.totalItems}
               </p>
             </div>
-            <div className="h-10 w-10 rounded-lg bg-chart-4/10 flex items-center justify-center">
-              <ShoppingBag className="h-5 w-5 text-chart-4" />
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-chart-4/10 flex items-center justify-center flex-shrink-0">
+              <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5 text-chart-4" />
             </div>
           </div>
         </Card>
@@ -263,38 +263,43 @@ export default function Dashboard() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left px-4 py-3 text-sm font-semibold">Token</th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold">Date & Time</th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold">Items</th>
-                  <th className="text-right px-4 py-3 text-sm font-semibold">Total</th>
-                  <th className="text-right px-4 py-3 text-sm font-semibold">Actions</th>
+                  <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold">Token</th>
+                  <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold">Date & Time</th>
+                  <th className="text-left px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold">Qty</th>
+                  <th className="text-right px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold">Total</th>
+                  <th className="text-right px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredBills.map((bill: Bill) => (
+                {filteredBills.map((bill: Bill) => {
+                  const totalQty = bill.items.reduce((sum, item) => sum + item.quantity, 0);
+                  return (
                   <tr
                     key={bill.id}
                     className="border-b hover-elevate cursor-pointer"
                     onClick={() => setSelectedBill(bill)}
                     data-testid={`bill-row-${bill.id}`}
                   >
-                    <td className="px-4 py-3">
+                    <td className="px-2 sm:px-4 py-3">
                       {bill.token && settings.tokenVisible && (
                         <Badge variant="outline" data-testid={`bill-token-${bill.id}`}>
                           #{bill.token}
                         </Badge>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-sm">
-                      {format(new Date(bill.dateISO), 'MMM dd, yyyy hh:mm a')}
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm">
+                      <div className="flex flex-col">
+                        <span className="font-medium">{format(new Date(bill.dateISO), 'MMM dd, yyyy')}</span>
+                        <span className="text-xs text-muted-foreground">{format(new Date(bill.dateISO), 'hh:mm a')}</span>
+                      </div>
                     </td>
-                    <td className="px-4 py-3 text-sm">
-                      {bill.items.length} item{bill.items.length !== 1 ? 's' : ''}
+                    <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium">
+                      {totalQty}
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold tabular-nums">
+                    <td className="px-2 sm:px-4 py-3 text-right font-semibold tabular-nums text-sm sm:text-base">
                       ₹{bill.total.toFixed(2)}
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-2 sm:px-4 py-3 text-right">
                       <Button
                         variant="ghost"
                         size="sm"
@@ -303,12 +308,14 @@ export default function Dashboard() {
                           setSelectedBill(bill);
                         }}
                         data-testid={`button-view-bill-${bill.id}`}
+                        className="text-xs sm:text-sm"
                       >
                         View
                       </Button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
