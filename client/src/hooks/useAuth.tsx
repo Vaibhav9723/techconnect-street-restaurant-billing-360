@@ -23,14 +23,39 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [isUnlocked, setIsUnlocked] = useState(true);
   const [cryptoKey, setCryptoKey] = useState<CryptoKey | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check if already unlocked (has key in memory from previous unlock in same session)
-    // For now, we require unlock on each page load for security
-    setIsLoading(false);
+    const autoUnlock = async () => {
+      try {
+        const MASTER_PASSWORD = '0905';
+        
+        if (!hasEncryptionKey()) {
+          const { keyHash, salt, iterations, key } = await initializeEncryption(MASTER_PASSWORD);
+          storeEncryptionVerifier(keyHash, salt, iterations);
+          markActivated();
+          setCryptoKey(key);
+        } else {
+          const verifier = getEncryptionVerifier();
+          if (verifier) {
+            const key = await unlockWithPassword(
+              MASTER_PASSWORD,
+              verifier.salt,
+              verifier.iterations
+            );
+            setCryptoKey(key);
+          }
+        }
+      } catch (error) {
+        console.error('Auto-unlock error:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    autoUnlock();
   }, []);
 
   const unlock = async (password: string): Promise<boolean> => {
