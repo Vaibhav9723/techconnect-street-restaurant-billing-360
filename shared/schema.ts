@@ -46,6 +46,9 @@ export const billSchema = z.object({
   gst: z.number().default(0),
   total: z.number(),
   token: z.number().optional(),
+  paymentMode: z.enum(['cash', 'online', 'both']).default('cash'),
+  onlineAmount: z.number().default(0),
+  cashAmount: z.number().default(0),
 });
 
 export type Bill = z.infer<typeof billSchema>;
