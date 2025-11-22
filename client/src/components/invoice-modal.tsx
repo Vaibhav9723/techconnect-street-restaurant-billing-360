@@ -178,6 +178,43 @@ function A4Invoice({ bill, settings }: { bill: Bill; settings: Settings }) {
         </div>
       </div>
 
+      {/* Payment Details */}
+      <div className="mb-6 text-sm">
+        <div className="font-semibold mb-2">Payment Details:</div>
+        <div className="space-y-1">
+          <div>
+            <span className="font-medium">Payment Mode: </span>
+            <span className="capitalize">
+              {bill.paymentMode === 'both' ? 'Mixed (Online + Cash)' : bill.paymentMode}
+            </span>
+          </div>
+          {bill.paymentMode === 'both' && (
+            <>
+              <div className="ml-4">
+                <span>• Online Paid: </span>
+                <span className="tabular-nums">₹{bill.onlineAmount.toFixed(2)}</span>
+              </div>
+              <div className="ml-4">
+                <span>• Cash Paid: </span>
+                <span className="tabular-nums">₹{bill.cashAmount.toFixed(2)}</span>
+              </div>
+            </>
+          )}
+          {bill.paymentMode === 'online' && (
+            <div className="ml-4">
+              <span>• Online Amount: </span>
+              <span className="tabular-nums">₹{bill.onlineAmount.toFixed(2)}</span>
+            </div>
+          )}
+          {bill.paymentMode === 'cash' && (
+            <div className="ml-4">
+              <span>• Cash Amount: </span>
+              <span className="tabular-nums">₹{bill.cashAmount.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Footer */}
       <div className="text-center text-sm pt-4 border-t border-gray-300">
         <p>Thank you for your business!</p>
@@ -250,6 +287,24 @@ function ReceiptInvoice({ bill, settings }: { bill: Bill; settings: Settings }) 
       <div className="flex justify-between font-bold text-base mb-4">
         <span>TOTAL:</span>
         <span className="tabular-nums">₹{bill.total.toFixed(2)}</span>
+      </div>
+
+      <div className="border-b border-dashed border-black mb-3" />
+
+      {/* Payment Details */}
+      <div className="mb-4 text-xs">
+        <div className="font-bold mb-1">Payment:</div>
+        <div>
+          <span className="capitalize">
+            {bill.paymentMode === 'both' ? 'Mixed Payment' : bill.paymentMode}
+          </span>
+        </div>
+        {bill.paymentMode === 'both' && (
+          <>
+            <div className="ml-2">Online: ₹{bill.onlineAmount.toFixed(2)}</div>
+            <div className="ml-2">Cash: ₹{bill.cashAmount.toFixed(2)}</div>
+          </>
+        )}
       </div>
 
       <div className="border-b border-dashed border-black mb-3" />
