@@ -29,19 +29,19 @@ export function DesktopNavigation() {
             const isActive = location === item.path;
 
             return (
-              <Link key={item.path} href={item.path}>
-                <a
-                  className={cn(
-                    'px-6 py-2 rounded-t-lg flex items-center gap-2 text-sm font-medium transition-colors hover-elevate',
-                    isActive
-                      ? 'bg-muted text-foreground'
-                      : 'text-muted-foreground'
-                  )}
-                  data-testid={`nav-${item.label.toLowerCase()}`}
-                >
-                  <Icon className="h-4 w-4" />
-                  {item.label}
-                </a>
+              <Link
+                key={item.path}
+                href={item.path}
+                className={cn(
+                  'px-6 py-2 rounded-t-lg flex items-center gap-2 text-sm font-medium transition-colors hover-elevate',
+                  isActive
+                    ? 'bg-muted text-foreground'
+                    : 'text-muted-foreground'
+                )}
+                data-testid={`nav-${item.label.toLowerCase()}`}
+              >
+                <Icon className="h-4 w-4" />
+                {item.label}
               </Link>
             );
           })}
@@ -71,17 +71,17 @@ export function MobileNavigation() {
         const isActive = location === item.path;
 
         return (
-          <Link key={item.path} href={item.path}>
-            <a
-              className={cn(
-                'flex flex-col items-center justify-center gap-1 h-full hover-elevate active-elevate-2',
-                isActive ? 'text-primary' : 'text-muted-foreground'
-              )}
-              data-testid={`nav-mobile-${item.label.toLowerCase()}`}
-            >
-              <Icon className="h-6 w-6" />
-              <span className="text-xs">{item.label}</span>
-            </a>
+          <Link
+            key={item.path}
+            href={item.path}
+            className={cn(
+              'flex flex-col items-center justify-center gap-1 h-full hover-elevate active-elevate-2',
+              isActive ? 'text-primary' : 'text-muted-foreground'
+            )}
+            data-testid={`nav-mobile-${item.label.toLowerCase()}`}
+          >
+            <Icon className="h-6 w-6" />
+            <span className="text-xs">{item.label}</span>
           </Link>
         );
       })}
