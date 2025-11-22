@@ -5,7 +5,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Search, Plus, Minus, Trash2, X, ShoppingCart, Check } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Search, Plus, Minus, Trash2, X, ShoppingCart, Check, CreditCard, Banknote, Wallet } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { useToast } from '@/hooks/use-toast';
 import { InvoiceModal } from '@/components/invoice-modal';
@@ -25,6 +26,8 @@ export default function Billing() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [showCart, setShowCart] = useState(false); // For mobile
   const [completedBill, setCompletedBill] = useState<Bill | null>(null);
+  const [paymentMode, setPaymentMode] = useState<'cash' | 'online' | 'both'>('cash');
+  const [onlineAmount, setOnlineAmount] = useState(0);
 
   const filteredProducts = useMemo(() => {
     return products.filter((p: Product) => {
@@ -87,6 +90,8 @@ export default function Billing() {
   const clearCart = () => {
     setCart([]);
     setDiscount(0);
+    setPaymentMode('cash');
+    setOnlineAmount(0);
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
@@ -94,6 +99,9 @@ export default function Billing() {
   const afterDiscount = subtotal - discountAmount;
   const gstAmount = settings.gstOn ? (afterDiscount * settings.gstPercent) / 100 : 0;
   const total = afterDiscount + gstAmount;
+
+  const cashAmount = paymentMode === 'cash' ? total : paymentMode === 'both' ? total - onlineAmount : 0;
+  const finalOnlineAmount = paymentMode === 'online' ? total : paymentMode === 'both' ? onlineAmount : 0;
 
   const handleCheckout = async () => {
     if (cart.length === 0) {
@@ -130,12 +138,17 @@ export default function Billing() {
       gst: gstAmount,
       total,
       token: tokenNumber,
+      paymentMode,
+      onlineAmount: finalOnlineAmount,
+      cashAmount,
     };
 
     await setBills([newBill, ...bills]);
     setCompletedBill(newBill);
     setCart([]);
     setDiscount(0);
+    setPaymentMode('cash');
+    setOnlineAmount(0);
 
     toast({
       title: 'Checkout successful',
@@ -343,6 +356,96 @@ export default function Billing() {
                 <span className="tabular-nums" data-testid="text-cart-total">₹{total.toFixed(2)}</span>
               </div>
             </div>
+
+            {cart.length > 0 && (
+              <div className="border-t pt-4 space-y-3">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Payment Mode</label>
+                  <Select value={paymentMode} onValueChange={(value: 'cash' | 'online' | 'both') => setPaymentMode(value)}>
+                    <SelectTrigger className="h-10" data-testid="select-payment-mode">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cash">
+                        <div className="flex items-center gap-2">
+                          <Banknote className="h-4 w-4" />
+                          <span>Cash</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="online">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="h-4 w-4" />
+                          <span>Online</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="both">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="h-4 w-4" />
+                          <span>Both (Mixed)</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {paymentMode === 'online' && (
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Online Amount</label>
+                    <Input
+                      type="number"
+                      value={total.toFixed(2)}
+                      disabled
+                      className="h-10 tabular-nums"
+                      data-testid="input-online-amount-disabled"
+                    />
+                  </div>
+                )}
+
+                {paymentMode === 'cash' && (
+                  <div>
+                    <label className="text-sm font-medium mb-2 block">Cash Amount</label>
+                    <Input
+                      type="number"
+                      value={total.toFixed(2)}
+                      disabled
+                      className="h-10 tabular-nums"
+                      data-testid="input-cash-amount-disabled"
+                    />
+                  </div>
+                )}
+
+                {paymentMode === 'both' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Online Amount</label>
+                      <Input
+                        type="number"
+                        min="0"
+                        max={total}
+                        value={onlineAmount}
+                        onChange={(e) => {
+                          const value = parseFloat(e.target.value) || 0;
+                          setOnlineAmount(Math.min(total, Math.max(0, value)));
+                        }}
+                        className="h-10 tabular-nums"
+                        data-testid="input-online-amount"
+                        placeholder="Enter online amount"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Cash Amount</label>
+                      <Input
+                        type="number"
+                        value={cashAmount.toFixed(2)}
+                        disabled
+                        className="h-10 tabular-nums bg-muted"
+                        data-testid="input-cash-amount"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Button
@@ -586,6 +689,92 @@ export default function Billing() {
                     <span className="tabular-nums">₹{total.toFixed(2)}</span>
                   </div>
                 </div>
+
+                {cart.length > 0 && (
+                  <div className="border-t pt-4 space-y-3">
+                    <div>
+                      <label className="text-sm font-medium mb-2 block">Payment Mode</label>
+                      <Select value={paymentMode} onValueChange={(value: 'cash' | 'online' | 'both') => setPaymentMode(value)}>
+                        <SelectTrigger className="h-10">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cash">
+                            <div className="flex items-center gap-2">
+                              <Banknote className="h-4 w-4" />
+                              <span>Cash</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="online">
+                            <div className="flex items-center gap-2">
+                              <CreditCard className="h-4 w-4" />
+                              <span>Online</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="both">
+                            <div className="flex items-center gap-2">
+                              <Wallet className="h-4 w-4" />
+                              <span>Both (Mixed)</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {paymentMode === 'online' && (
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Online Amount</label>
+                        <Input
+                          type="number"
+                          value={total.toFixed(2)}
+                          disabled
+                          className="h-10 tabular-nums"
+                        />
+                      </div>
+                    )}
+
+                    {paymentMode === 'cash' && (
+                      <div>
+                        <label className="text-sm font-medium mb-2 block">Cash Amount</label>
+                        <Input
+                          type="number"
+                          value={total.toFixed(2)}
+                          disabled
+                          className="h-10 tabular-nums"
+                        />
+                      </div>
+                    )}
+
+                    {paymentMode === 'both' && (
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Online Amount</label>
+                          <Input
+                            type="number"
+                            min="0"
+                            max={total}
+                            value={onlineAmount}
+                            onChange={(e) => {
+                              const value = parseFloat(e.target.value) || 0;
+                              setOnlineAmount(Math.min(total, Math.max(0, value)));
+                            }}
+                            className="h-10 tabular-nums"
+                            placeholder="Enter online amount"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Cash Amount</label>
+                          <Input
+                            type="number"
+                            value={cashAmount.toFixed(2)}
+                            disabled
+                            className="h-10 tabular-nums bg-muted"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Button
