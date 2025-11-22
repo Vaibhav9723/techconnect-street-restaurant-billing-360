@@ -36,8 +36,8 @@ export const billItemSchema = z.object({
 
 export type BillItem = z.infer<typeof billItemSchema>;
 
-// Bill Schema
-export const billSchema = z.object({
+// Bill Schema - Base schema without refinement
+const billSchemaBase = z.object({
   id: z.string(),
   dateISO: z.string(),
   items: z.array(billItemSchema),
@@ -47,13 +47,26 @@ export const billSchema = z.object({
   total: z.number(),
   token: z.number().optional(),
   paymentMode: z.enum(['cash', 'online', 'both']).default('cash'),
-  onlineAmount: z.number().default(0),
-  cashAmount: z.number().default(0),
+  onlineAmount: z.number().min(0).default(0),
+  cashAmount: z.number().min(0).default(0),
 });
 
-export type Bill = z.infer<typeof billSchema>;
+// Refinement function for payment validation
+const paymentValidation = (data: { onlineAmount: number; cashAmount: number; total: number }) => {
+  const sum = data.onlineAmount + data.cashAmount;
+  return Math.abs(sum - data.total) < 0.01;
+};
 
-export const insertBillSchema = billSchema.omit({ id: true });
+// Bill schema with validation
+export const billSchema = billSchemaBase.refine(paymentValidation, {
+  message: "Payment amounts must sum to total",
+});
+
+export type Bill = z.infer<typeof billSchemaBase>;
+
+export const insertBillSchema = billSchemaBase.omit({ id: true }).refine(paymentValidation, {
+  message: "Payment amounts must sum to total",
+});
 export type InsertBill = z.infer<typeof insertBillSchema>;
 
 // Settings Schema

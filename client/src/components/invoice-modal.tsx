@@ -31,12 +31,12 @@ export function InvoiceModal({ bill, settings, onClose }: InvoiceModalProps) {
     const options = {
       margin: settings.printLayout === 'A4' ? 10 : 5,
       filename: `invoice-${bill.token || bill.id}.pdf`,
-      image: { type: 'jpeg', quality: 0.98 },
+      image: { type: 'jpeg' as const, quality: 0.98 },
       html2canvas: { scale: 2 },
       jsPDF: {
         unit: 'mm',
-        format: settings.printLayout === 'A4' ? 'a4' : settings.printLayout === '80mm' ? [80, 200] : [58, 200],
-        orientation: 'portrait',
+        format: settings.printLayout === 'A4' ? 'a4' : settings.printLayout === '80mm' ? ([80, 200] as [number, number]) : ([58, 200] as [number, number]),
+        orientation: 'portrait' as const,
       },
     };
 

@@ -94,6 +94,13 @@ export default function Billing() {
     setOnlineAmount(0);
   };
 
+  const handlePaymentModeChange = (mode: 'cash' | 'online' | 'both') => {
+    setPaymentMode(mode);
+    if (mode !== 'both') {
+      setOnlineAmount(0);
+    }
+  };
+
   const subtotal = cart.reduce((sum, item) => sum + item.total, 0);
   const discountAmount = (subtotal * discount) / 100;
   const afterDiscount = subtotal - discountAmount;
@@ -111,6 +118,25 @@ export default function Billing() {
         description: 'Add items to cart before checkout',
       });
       return;
+    }
+
+    if (paymentMode === 'both') {
+      if (onlineAmount < 0 || onlineAmount > total) {
+        toast({
+          variant: 'destructive',
+          title: 'Invalid payment amount',
+          description: 'Online amount must be between ₹0 and ₹' + total.toFixed(2),
+        });
+        return;
+      }
+      if (cashAmount < 0) {
+        toast({
+          variant: 'destructive',
+          title: 'Invalid payment amount',
+          description: 'Cash amount cannot be negative',
+        });
+        return;
+      }
     }
 
     // Get/generate token
@@ -361,7 +387,7 @@ export default function Billing() {
               <div className="border-t pt-4 space-y-3">
                 <div>
                   <label className="text-sm font-medium mb-2 block">Payment Mode</label>
-                  <Select value={paymentMode} onValueChange={(value: 'cash' | 'online' | 'both') => setPaymentMode(value)}>
+                  <Select value={paymentMode} onValueChange={handlePaymentModeChange}>
                     <SelectTrigger className="h-10" data-testid="select-payment-mode">
                       <SelectValue />
                     </SelectTrigger>
@@ -694,7 +720,7 @@ export default function Billing() {
                   <div className="border-t pt-4 space-y-3">
                     <div>
                       <label className="text-sm font-medium mb-2 block">Payment Mode</label>
-                      <Select value={paymentMode} onValueChange={(value: 'cash' | 'online' | 'both') => setPaymentMode(value)}>
+                      <Select value={paymentMode} onValueChange={handlePaymentModeChange}>
                         <SelectTrigger className="h-10">
                           <SelectValue />
                         </SelectTrigger>

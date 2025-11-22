@@ -10,6 +10,8 @@ import {
   Calendar,
   FileText,
   Award,
+  CreditCard,
+  Banknote,
 } from 'lucide-react';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, startOfYear, endOfYear, subDays, isWithinInterval } from 'date-fns';
 import { Bill } from '@shared/schema';
@@ -69,8 +71,10 @@ export default function Dashboard() {
     const totalItems = filteredBills.reduce((sum: number, bill: Bill) => 
       sum + bill.items.reduce((s, item) => s + item.quantity, 0), 0
     );
+    const totalOnlinePayments = filteredBills.reduce((sum: number, bill: Bill) => sum + (bill.onlineAmount || 0), 0);
+    const totalCashPayments = filteredBills.reduce((sum: number, bill: Bill) => sum + (bill.cashAmount || 0), 0);
 
-    return { totalSales, totalBills, avgBill, totalItems };
+    return { totalSales, totalBills, avgBill, totalItems, totalOnlinePayments, totalCashPayments };
   }, [filteredBills]);
 
   const topSellingProducts = useMemo(() => {
@@ -157,7 +161,7 @@ export default function Dashboard() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
         <Card className="p-3 sm:p-6">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
@@ -210,6 +214,34 @@ export default function Dashboard() {
             </div>
             <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-chart-4/10 flex items-center justify-center flex-shrink-0">
               <ShoppingBag className="h-4 w-4 sm:h-5 sm:w-5 text-chart-4" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-3 sm:p-6">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-muted-foreground">Online Payments</p>
+              <p className="text-lg sm:text-2xl lg:text-3xl font-bold tabular-nums mt-1 sm:mt-2 truncate" data-testid="stat-online-payments">
+                ₹{stats.totalOnlinePayments.toFixed(2)}
+              </p>
+            </div>
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-chart-5/10 flex items-center justify-center flex-shrink-0">
+              <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-chart-5" />
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-3 sm:p-6">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm text-muted-foreground">Cash Payments</p>
+              <p className="text-lg sm:text-2xl lg:text-3xl font-bold tabular-nums mt-1 sm:mt-2 truncate" data-testid="stat-cash-payments">
+                ₹{stats.totalCashPayments.toFixed(2)}
+              </p>
+            </div>
+            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+              <Banknote className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
             </div>
           </div>
         </Card>

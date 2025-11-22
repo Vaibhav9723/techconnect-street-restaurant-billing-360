@@ -80,20 +80,22 @@ export function useEncryptedStorage<T>(
 }
 
 // Specialized hooks for each data type
+import { Product, Category, Bill, Settings, TokenCounter } from '@shared/schema';
+
 export function useProducts() {
-  return useEncryptedStorage(STORAGE_KEYS.PRODUCTS, []);
+  return useEncryptedStorage<Product[]>(STORAGE_KEYS.PRODUCTS, []);
 }
 
 export function useCategories() {
-  return useEncryptedStorage(STORAGE_KEYS.CATEGORIES, []);
+  return useEncryptedStorage<Category[]>(STORAGE_KEYS.CATEGORIES, []);
 }
 
 export function useBills() {
-  return useEncryptedStorage(STORAGE_KEYS.BILLS, []);
+  return useEncryptedStorage<Bill[]>(STORAGE_KEYS.BILLS, []);
 }
 
 export function useSettings() {
-  return useEncryptedStorage(STORAGE_KEYS.SETTINGS, {
+  return useEncryptedStorage<Settings>(STORAGE_KEYS.SETTINGS, {
     shopName: 'My Shop',
     address: '',
     gstOn: false,
@@ -104,7 +106,7 @@ export function useSettings() {
 }
 
 export function useTokens() {
-  return useEncryptedStorage(STORAGE_KEYS.TOKENS, {
+  return useEncryptedStorage<TokenCounter>(STORAGE_KEYS.TOKENS, {
     date: new Date().toISOString().split('T')[0],
     count: 0,
   });
