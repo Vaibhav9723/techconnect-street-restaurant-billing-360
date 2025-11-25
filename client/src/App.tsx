@@ -21,24 +21,24 @@ import { DesktopNavigation, MobileNavigation } from "@/components/layout/navigat
 function Router() {
   return (
     <Switch>
-      {/* Public route */}
+      {/* Public route - NOT wrapped in ProtectedRoute */}
       <Route path="/login" component={Login} />
 
-      {/* Admin routes */}
+      {/* Admin routes - role-specific protection */}
       <Route path="/admin/dashboard">
         <ProtectedRoute requiredRole="admin">
           <AdminDashboard />
         </ProtectedRoute>
       </Route>
 
-      {/* Client routes */}
+      {/* Client routes - role-specific protection */}
       <Route path="/client/dashboard">
         <ProtectedRoute requiredRole="client">
           <ClientDashboard />
         </ProtectedRoute>
       </Route>
 
-      {/* Protected POS routes - accessible to both admin and client */}
+      {/* Protected POS routes - accessible to authenticated users (both admin and client) */}
       <Route path="/">
         <ProtectedRoute>
           <POSLayout>

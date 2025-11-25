@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
+import { isFirebaseConfigured } from '@/lib/firebase';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -13,6 +14,15 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
   const { user, role, loading } = useFirebaseAuth();
 
   useEffect(() => {
+    // If Firebase is not configured, allow access to POS routes but not role-specific routes
+    if (!isFirebaseConfigured()) {
+      if (requiredRole) {
+        // Redirect role-specific routes to login when Firebase not configured
+        setLocation('/login');
+      }
+      return;
+    }
+
     if (!loading) {
       // If not logged in, redirect to login
       if (!user) {
@@ -32,6 +42,11 @@ export function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) 
       }
     }
   }, [user, role, loading, requiredRole, setLocation]);
+
+  // If Firebase not configured and no specific role required, allow access
+  if (!isFirebaseConfigured() && !requiredRole) {
+    return <>{children}</>;
+  }
 
   // Show loading state
   if (loading) {

@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
+import { isFirebaseConfigured } from '@/lib/firebase';
 import { useLocation } from 'wouter';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { Eye, EyeOff, Lock, Mail, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const [, setLocation] = useLocation();
@@ -61,6 +62,38 @@ export default function Login() {
       setLoading(false);
     }
   };
+
+  // Show configuration notice if Firebase not configured
+  if (!isFirebaseConfigured()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-primary/10">
+        <Card className="w-full max-w-md p-8 space-y-6">
+          <div className="text-center space-y-4">
+            <div className="flex justify-center mb-4">
+              <div className="h-16 w-16 rounded-full bg-orange-500/10 flex items-center justify-center">
+                <AlertCircle className="h-8 w-8 text-orange-600" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-bold">Firebase Not Configured</h1>
+            <p className="text-sm text-muted-foreground">
+              Please configure Firebase to enable authentication.
+            </p>
+            <div className="bg-muted p-4 rounded-lg text-left text-sm space-y-2">
+              <p className="font-medium">Setup Instructions:</p>
+              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                <li>Create a <code className="bg-background px-1 rounded">.env</code> file</li>
+                <li>Add your Firebase configuration</li>
+                <li>Restart the development server</li>
+              </ol>
+              <p className="text-xs mt-3">
+                See <code className="bg-background px-1 rounded">QUICKSTART.md</code> for detailed instructions.
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/5 via-background to-primary/10">
