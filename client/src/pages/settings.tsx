@@ -278,7 +278,7 @@ export default function Settings() {
             <label className="text-sm font-medium mb-2 block">Primary Color</label>
             <Select
               value={formData.primaryColor}
-              onValueChange={async (value: 'blue' | 'green' | 'purple' | 'orange' | 'red') => {
+              onValueChange={async (value: 'blue' | 'green' | 'yellow' | 'orange' | 'red' | 'custom') => {
                 const updated = { ...formData, primaryColor: value };
                 setFormData(updated);
                 await setSettings(updated);
@@ -290,12 +290,44 @@ export default function Settings() {
               <SelectContent>
                 <SelectItem value="blue">Blue</SelectItem>
                 <SelectItem value="green">Green</SelectItem>
-                <SelectItem value="purple">Purple</SelectItem>
+                <SelectItem value="yellow">Yellow</SelectItem>
                 <SelectItem value="orange">Orange</SelectItem>
                 <SelectItem value="red">Red</SelectItem>
+                <SelectItem value="custom">Custom</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          {formData.primaryColor === 'custom' && (
+            <div>
+              <label className="text-sm font-medium mb-2 block">Custom Color</label>
+              <div className="flex gap-2 items-center">
+                <Input
+                  type="color"
+                  value={formData.customColor || '#ffdf00'}
+                  onChange={async (e) => {
+                    const updated = { ...formData, customColor: e.target.value };
+                    setFormData(updated);
+                    await setSettings(updated);
+                  }}
+                  className="h-12 w-20"
+                  data-testid="input-custom-color"
+                />
+                <Input
+                  type="text"
+                  value={formData.customColor || '#ffdf00'}
+                  onChange={async (e) => {
+                    const updated = { ...formData, customColor: e.target.value };
+                    setFormData(updated);
+                    await setSettings(updated);
+                  }}
+                  placeholder="#ffdf00"
+                  className="h-12 flex-1"
+                  data-testid="input-custom-color-text"
+                />
+              </div>
+            </div>
+          )}
         </Card>
       </div>
 
