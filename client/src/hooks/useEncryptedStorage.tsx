@@ -56,6 +56,11 @@ export function useEncryptedStorage<T>(
       localStorage.setItem(storageKey, JSON.stringify(encrypted));
       setData(newData);
       setError(null);
+      
+      // Dispatch custom event to notify other components
+      window.dispatchEvent(new CustomEvent('storage-update', { 
+        detail: { key: storageKey } 
+      }));
     } catch (err) {
       console.error(`Error saving ${storageKey}:`, err);
       setError('Failed to encrypt data');
@@ -69,6 +74,21 @@ export function useEncryptedStorage<T>(
       loadData();
     }
   }, [isUnlocked, cryptoKey, loadData]);
+
+  // Listen for storage updates from other components
+  useEffect(() => {
+    const handleStorageUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<{ key: string }>;
+      if (customEvent.detail.key === storageKey) {
+        loadData();
+      }
+    };
+
+    window.addEventListener('storage-update', handleStorageUpdate);
+    return () => {
+      window.removeEventListener('storage-update', handleStorageUpdate);
+    };
+  }, [storageKey, loadData]);
 
   return {
     data,
@@ -102,6 +122,8 @@ export function useSettings() {
     gstPercent: 18,
     tokenVisible: true,
     printLayout: '80mm' as const,
+    theme: 'light' as const,
+    primaryColor: 'blue' as const,
   });
 }
 
