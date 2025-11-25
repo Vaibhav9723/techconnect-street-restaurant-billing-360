@@ -253,6 +253,43 @@ export default function Settings() {
         </Card>
       </div>
 
+      {/* Appearance */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold">Appearance</h2>
+        <Card className="p-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <label className="text-sm font-medium block">Dark Mode</label>
+              <p className="text-xs text-muted-foreground">Toggle dark/light theme</p>
+            </div>
+            <Switch
+              checked={formData.theme === 'dark'}
+              onCheckedChange={(checked) => setFormData({ ...formData, theme: checked ? 'dark' : 'light' })}
+              data-testid="switch-theme"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-medium mb-2 block">Primary Color</label>
+            <Select
+              value={formData.primaryColor}
+              onValueChange={(value: 'blue' | 'green' | 'purple' | 'orange' | 'red') => setFormData({ ...formData, primaryColor: value })}
+            >
+              <SelectTrigger className="h-12" data-testid="select-primary-color">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="blue">Blue</SelectItem>
+                <SelectItem value="green">Green</SelectItem>
+                <SelectItem value="purple">Purple</SelectItem>
+                <SelectItem value="orange">Orange</SelectItem>
+                <SelectItem value="red">Red</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </Card>
+      </div>
+
       {/* Display Options */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Display Options</h2>

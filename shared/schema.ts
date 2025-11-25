@@ -77,6 +77,8 @@ export const settingsSchema = z.object({
   gstPercent: z.number().min(0).max(100).default(18),
   tokenVisible: z.boolean().default(true),
   printLayout: z.enum(["A4", "58mm", "80mm"]).default("80mm"),
+  theme: z.enum(["light", "dark"]).default("light"),
+  primaryColor: z.enum(["blue", "green", "purple", "orange", "red"]).default("blue"),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
