@@ -4,16 +4,83 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
+import { FirebaseAuthProvider } from "@/hooks/useFirebaseAuth";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Dashboard from "@/pages/dashboard";
 import Billing from "@/pages/billing";
 import Products from "@/pages/products";
 import Categories from "@/pages/categories";
 import Settings from "@/pages/settings";
+import Login from "@/pages/login";
+import AdminDashboard from "@/pages/admin-dashboard";
+import ClientDashboard from "@/pages/client-dashboard";
 import NotFound from "@/pages/not-found";
 import { DesktopNavigation, MobileNavigation } from "@/components/layout/navigation";
 
 function Router() {
+  return (
+    <Switch>
+      {/* Public route */}
+      <Route path="/login" component={Login} />
+
+      {/* Admin routes */}
+      <Route path="/admin/dashboard">
+        <ProtectedRoute requiredRole="admin">
+          <AdminDashboard />
+        </ProtectedRoute>
+      </Route>
+
+      {/* Client routes */}
+      <Route path="/client/dashboard">
+        <ProtectedRoute requiredRole="client">
+          <ClientDashboard />
+        </ProtectedRoute>
+      </Route>
+
+      {/* Protected POS routes - accessible to both admin and client */}
+      <Route path="/">
+        <ProtectedRoute>
+          <POSLayout>
+            <Dashboard />
+          </POSLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/billing">
+        <ProtectedRoute>
+          <POSLayout>
+            <Billing />
+          </POSLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/products">
+        <ProtectedRoute>
+          <POSLayout>
+            <Products />
+          </POSLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/categories">
+        <ProtectedRoute>
+          <POSLayout>
+            <Categories />
+          </POSLayout>
+        </ProtectedRoute>
+      </Route>
+      <Route path="/settings">
+        <ProtectedRoute>
+          <POSLayout>
+            <Settings />
+          </POSLayout>
+        </ProtectedRoute>
+      </Route>
+
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+function POSLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background">
       <div className="hidden md:block">
@@ -21,14 +88,7 @@ function Router() {
       </div>
 
       <main className="md:min-h-[calc(100vh-4rem)]">
-        <Switch>
-          <Route path="/" component={Dashboard} />
-          <Route path="/billing" component={Billing} />
-          <Route path="/products" component={Products} />
-          <Route path="/categories" component={Categories} />
-          <Route path="/settings" component={Settings} />
-          <Route component={NotFound} />
-        </Switch>
+        {children}
       </main>
 
       <div className="md:hidden">
@@ -42,11 +102,13 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <AuthProvider>
-          <ThemeProvider>
-            <Router />
-          </ThemeProvider>
-        </AuthProvider>
+        <FirebaseAuthProvider>
+          <AuthProvider>
+            <ThemeProvider>
+              <Router />
+            </ThemeProvider>
+          </AuthProvider>
+        </FirebaseAuthProvider>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>

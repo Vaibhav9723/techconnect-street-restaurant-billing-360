@@ -1,6 +1,9 @@
 import { Link, useLocation } from 'wouter';
-import { LayoutDashboard, ShoppingCart, Package, FolderOpen, Settings } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Package, FolderOpen, Settings, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -11,7 +14,26 @@ const navItems = [
 ];
 
 export function DesktopNavigation() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const { user, logout } = useFirebaseAuth();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast({
+        title: 'Logged out',
+        description: 'You have been logged out successfully',
+      });
+      setLocation('/login');
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to logout',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
     <header className="h-16 border-b bg-background flex items-center justify-between px-8 sticky top-0 z-50">
@@ -48,14 +70,25 @@ export function DesktopNavigation() {
         </nav>
       </div>
 
-      <div className="text-xs text-muted-foreground tabular-nums" data-testid="text-current-time">
-        {new Date().toLocaleDateString('en-US', {
-          weekday: 'short',
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-        })}
+      <div className="flex items-center gap-4">
+        {user && (
+          <div className="text-xs text-muted-foreground">
+            {user.email}
+          </div>
+        )}
+        <div className="text-xs text-muted-foreground tabular-nums" data-testid="text-current-time">
+          {new Date().toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </div>
+        <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-nav-logout">
+          <LogOut className="h-4 w-4 mr-2" />
+          Logout
+        </Button>
       </div>
     </header>
   );
