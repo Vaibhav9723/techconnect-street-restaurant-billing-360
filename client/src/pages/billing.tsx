@@ -497,7 +497,7 @@ export default function Billing() {
             >
               Cart
               {cart.length > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs">
+                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center p-0 text-xs">
                   {cart.length}
                 </Badge>
               )}
@@ -587,7 +587,7 @@ export default function Billing() {
                   data-testid="button-floating-cart"
                 >
                   <ShoppingCart className="h-6 w-6" />
-                  <Badge className="absolute -top-1 -right-1 h-6 w-6 rounded-full p-0 text-xs">
+                  <Badge className="absolute -top-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center p-0 text-xs">
                     {cart.length}
                   </Badge>
                 </Button>
@@ -620,8 +620,8 @@ export default function Billing() {
                 ) : (
                   cart.map((item) => (
                     <Card key={item.productId} className="p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-medium text-center flex-1">{item.productName}</h4>
+                      <div className="flex items-start justify-between mb-2">
+                        <h4 className="font-medium flex-1">{item.productName}</h4>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -632,29 +632,28 @@ export default function Billing() {
                         </Button>
                       </div>
 
-                      <div className="flex items-center justify-center gap-3 mb-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => updateQuantity(item.productId, -1)}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-8 text-center font-medium tabular-nums">
-                          {item.quantity}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => updateQuantity(item.productId, 1)}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-
-                      <div className="text-center">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => updateQuantity(item.productId, -1)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-8 text-center font-medium tabular-nums">
+                            {item.quantity}
+                          </span>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => updateQuantity(item.productId, 1)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
                         <span className="font-semibold tabular-nums">
                           ₹{item.total.toFixed(2)}
                         </span>
