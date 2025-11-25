@@ -589,10 +589,12 @@ export default function Billing() {
                     onClick={() => setShowCart(true)}
                     data-testid="button-floating-cart"
                   >
-                    <ShoppingCart className="h-6 w-6" />
-                    <Badge className="absolute -top-1 -right-1 h-6 w-6 rounded-full flex items-center justify-center p-0 text-xs font-bold">
-                      {cart.length}
-                    </Badge>
+                    <div className="relative inline-flex items-center justify-center">
+                      <ShoppingCart className="h-6 w-6" />
+                      <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full flex items-center justify-center p-0 text-xs font-bold">
+                        {cart.length}
+                      </Badge>
+                    </div>
                   </Button>
                 </div>
               )}

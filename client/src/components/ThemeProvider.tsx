@@ -29,8 +29,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const root = document.documentElement;
-    const theme = settings.theme || 'light';
-    const primaryColor = settings.primaryColor || 'blue';
+    const theme = settings?.theme || 'light';
+    const primaryColor = settings?.primaryColor || 'blue';
 
     if (theme === 'dark') {
       root.classList.add('dark');
@@ -38,12 +38,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.classList.remove('dark');
     }
 
-    const colors = colorSchemes[primaryColor][theme];
+    const colors = colorSchemes[primaryColor]?.[theme] || colorSchemes.blue.light;
     root.style.setProperty('--primary', colors.primary);
     root.style.setProperty('--ring', colors.ring);
     root.style.setProperty('--sidebar-primary', colors.primary);
     root.style.setProperty('--sidebar-ring', colors.ring);
-  }, [settings.theme, settings.primaryColor]);
+  }, [settings]);
 
   return <>{children}</>;
 }

@@ -264,7 +264,12 @@ export default function Settings() {
             </div>
             <Switch
               checked={formData.theme === 'dark'}
-              onCheckedChange={(checked) => setFormData({ ...formData, theme: checked ? 'dark' : 'light' })}
+              onCheckedChange={async (checked) => {
+                const newTheme: 'light' | 'dark' = checked ? 'dark' : 'light';
+                const updated = { ...formData, theme: newTheme };
+                setFormData(updated);
+                await setSettings(updated);
+              }}
               data-testid="switch-theme"
             />
           </div>
@@ -273,7 +278,11 @@ export default function Settings() {
             <label className="text-sm font-medium mb-2 block">Primary Color</label>
             <Select
               value={formData.primaryColor}
-              onValueChange={(value: 'blue' | 'green' | 'purple' | 'orange' | 'red') => setFormData({ ...formData, primaryColor: value })}
+              onValueChange={async (value: 'blue' | 'green' | 'purple' | 'orange' | 'red') => {
+                const updated = { ...formData, primaryColor: value };
+                setFormData(updated);
+                await setSettings(updated);
+              }}
             >
               <SelectTrigger className="h-12" data-testid="select-primary-color">
                 <SelectValue />
