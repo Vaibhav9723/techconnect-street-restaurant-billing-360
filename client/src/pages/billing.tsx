@@ -487,7 +487,7 @@ export default function Billing() {
             </button>
             <button
               className={cn(
-                'py-3 text-sm font-medium border-b-2 transition-colors relative',
+                'py-3 text-sm font-medium border-b-2 transition-colors',
                 showCart
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground'
@@ -495,12 +495,14 @@ export default function Billing() {
               onClick={() => setShowCart(true)}
               data-testid="tab-cart"
             >
-              Cart
-              {cart.length > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full flex items-center justify-center p-0 text-xs">
-                  {cart.length}
-                </Badge>
-              )}
+              <span className="relative inline-block">
+                Cart
+                {cart.length > 0 && (
+                  <Badge className="absolute -top-1 -right-2 h-5 w-5 rounded-full flex items-center justify-center p-0 text-xs">
+                    {cart.length}
+                  </Badge>
+                )}
+              </span>
             </button>
           </div>
 
