@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSettings, useProducts, useCategories, useBills, useTokens } from '@/hooks/useEncryptedStorage';
 import { useAuth } from '@/hooks/useAuth';
 import { Card } from '@/components/ui/card';
@@ -36,6 +36,10 @@ export default function Settings() {
   const { toast } = useToast();
 
   const [formData, setFormData] = useState<SettingsSchema>(settings);
+
+  useEffect(() => {
+    setFormData(settings);
+  }, [settings]);
   const [showWipeDialog, setShowWipeDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importMode, setImportMode] = useState<'merge' | 'overwrite'>('merge');

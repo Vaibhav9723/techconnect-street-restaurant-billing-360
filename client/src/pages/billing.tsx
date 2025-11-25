@@ -359,49 +359,49 @@ export default function Billing() {
             )}
           </div>
 
-          <div className="border-t p-6 space-y-4 bg-background">
-            <div className="space-y-2 text-sm">
+          <div className="border-t p-4 space-y-3 bg-background">
+            <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="tabular-nums">₹{subtotal.toFixed(2)}</span>
+                <span className="text-muted-foreground text-xs">Subtotal</span>
+                <span className="tabular-nums text-xs">₹{subtotal.toFixed(2)}</span>
               </div>
 
               <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">Discount</span>
-                <div className="flex items-center gap-2">
+                <span className="text-muted-foreground text-xs">Discount</span>
+                <div className="flex items-center gap-1.5">
                   <Input
                     type="number"
                     min="0"
                     max="100"
                     value={discount}
                     onChange={(e) => setDiscount(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                    className="h-8 w-16 text-right"
+                    className="h-7 w-14 text-right text-xs"
                     data-testid="input-discount"
                   />
-                  <span>%</span>
-                  <span className="tabular-nums">-₹{discountAmount.toFixed(2)}</span>
+                  <span className="text-xs">%</span>
+                  <span className="tabular-nums text-xs">-₹{discountAmount.toFixed(2)}</span>
                 </div>
               </div>
 
               {settings.gstOn && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">GST ({settings.gstPercent}%)</span>
-                  <span className="tabular-nums">+₹{gstAmount.toFixed(2)}</span>
+                  <span className="text-muted-foreground text-xs">GST ({settings.gstPercent}%)</span>
+                  <span className="tabular-nums text-xs">+₹{gstAmount.toFixed(2)}</span>
                 </div>
               )}
 
-              <div className="flex justify-between text-lg font-bold pt-2 border-t">
+              <div className="flex justify-between text-base font-bold pt-1.5 border-t">
                 <span>Total</span>
                 <span className="tabular-nums" data-testid="text-cart-total">₹{total.toFixed(2)}</span>
               </div>
             </div>
 
             {cart.length > 0 && (
-              <div className="border-t pt-4 space-y-3">
+              <div className="border-t pt-3 space-y-2.5">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Payment Mode</label>
+                  <label className="text-xs font-medium mb-1.5 block">Payment Mode</label>
                   <Select value={paymentMode} onValueChange={handlePaymentModeChange}>
-                    <SelectTrigger className="h-10" data-testid="select-payment-mode">
+                    <SelectTrigger className="h-9 text-sm" data-testid="select-payment-mode">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -428,9 +428,9 @@ export default function Billing() {
                 </div>
 
                 {paymentMode === 'both' && (
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Online Amount</label>
+                      <label className="text-xs font-medium mb-1 block">Online Amount</label>
                       <Input
                         type="number"
                         min="0"
@@ -440,18 +440,18 @@ export default function Billing() {
                           const value = parseFloat(e.target.value) || 0;
                           setOnlineAmount(Math.min(total, Math.max(0, value)));
                         }}
-                        className="h-10 tabular-nums"
+                        className="h-8 tabular-nums text-sm"
                         data-testid="input-online-amount"
                         placeholder="Enter online amount"
                       />
                     </div>
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Cash Amount</label>
+                      <label className="text-xs font-medium mb-1 block">Cash Amount</label>
                       <Input
                         type="number"
                         value={cashAmount.toFixed(2)}
                         disabled
-                        className="h-10 tabular-nums bg-muted"
+                        className="h-8 tabular-nums bg-muted text-sm"
                         data-testid="input-cash-amount"
                       />
                     </div>
@@ -461,7 +461,7 @@ export default function Billing() {
             )}
 
             <Button
-              className="w-full h-12 font-semibold"
+              className="w-full h-11 font-semibold"
               onClick={handleCheckout}
               disabled={cart.length === 0}
               data-testid="button-checkout"
@@ -603,6 +603,19 @@ export default function Billing() {
           {/* Cart Tab */}
           {showCart && (
             <div className="flex-1 flex flex-col overflow-hidden">
+              {cart.length > 0 && (
+                <div className="p-3 border-b bg-background flex items-center justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearCart}
+                    data-testid="button-clear-cart-mobile"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Clear Cart
+                  </Button>
+                </div>
+              )}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {cart.length === 0 ? (
                   <div className="text-center py-12">
@@ -655,48 +668,48 @@ export default function Billing() {
                 )}
               </div>
 
-              <div className="border-t p-4 space-y-4 bg-background mb-16">
-                <div className="space-y-2 text-sm">
+              <div className="border-t p-4 space-y-3 bg-background mb-16">
+                <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Subtotal</span>
-                    <span className="tabular-nums">₹{subtotal.toFixed(2)}</span>
+                    <span className="text-muted-foreground text-xs">Subtotal</span>
+                    <span className="tabular-nums text-xs">₹{subtotal.toFixed(2)}</span>
                   </div>
 
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Discount</span>
-                    <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground text-xs">Discount</span>
+                    <div className="flex items-center gap-1.5">
                       <Input
                         type="number"
                         min="0"
                         max="100"
                         value={discount}
                         onChange={(e) => setDiscount(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                        className="h-8 w-16 text-right"
+                        className="h-7 w-14 text-right text-xs"
                       />
-                      <span>%</span>
-                      <span className="tabular-nums">-₹{discountAmount.toFixed(2)}</span>
+                      <span className="text-xs">%</span>
+                      <span className="tabular-nums text-xs">-₹{discountAmount.toFixed(2)}</span>
                     </div>
                   </div>
 
                   {settings.gstOn && (
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">GST ({settings.gstPercent}%)</span>
-                      <span className="tabular-nums">+₹{gstAmount.toFixed(2)}</span>
+                      <span className="text-muted-foreground text-xs">GST ({settings.gstPercent}%)</span>
+                      <span className="tabular-nums text-xs">+₹{gstAmount.toFixed(2)}</span>
                     </div>
                   )}
 
-                  <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                  <div className="flex justify-between text-base font-bold pt-1.5 border-t">
                     <span>Total</span>
                     <span className="tabular-nums">₹{total.toFixed(2)}</span>
                   </div>
                 </div>
 
                 {cart.length > 0 && (
-                  <div className="border-t pt-4 space-y-3">
+                  <div className="border-t pt-3 space-y-2.5">
                     <div>
-                      <label className="text-sm font-medium mb-2 block">Payment Mode</label>
+                      <label className="text-xs font-medium mb-1.5 block">Payment Mode</label>
                       <Select value={paymentMode} onValueChange={handlePaymentModeChange}>
-                        <SelectTrigger className="h-10">
+                        <SelectTrigger className="h-9 text-sm">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -723,9 +736,9 @@ export default function Billing() {
                     </div>
 
                     {paymentMode === 'both' && (
-                      <div className="space-y-3">
+                      <div className="space-y-2">
                         <div>
-                          <label className="text-sm font-medium mb-2 block">Online Amount</label>
+                          <label className="text-xs font-medium mb-1 block">Online Amount</label>
                           <Input
                             type="number"
                             min="0"
@@ -735,17 +748,17 @@ export default function Billing() {
                               const value = parseFloat(e.target.value) || 0;
                               setOnlineAmount(Math.min(total, Math.max(0, value)));
                             }}
-                            className="h-10 tabular-nums"
+                            className="h-8 tabular-nums text-sm"
                             placeholder="Enter online amount"
                           />
                         </div>
                         <div>
-                          <label className="text-sm font-medium mb-2 block">Cash Amount</label>
+                          <label className="text-xs font-medium mb-1 block">Cash Amount</label>
                           <Input
                             type="number"
                             value={cashAmount.toFixed(2)}
                             disabled
-                            className="h-10 tabular-nums bg-muted"
+                            className="h-8 tabular-nums bg-muted text-sm"
                           />
                         </div>
                       </div>
@@ -754,7 +767,7 @@ export default function Billing() {
                 )}
 
                 <Button
-                  className="w-full h-12 font-semibold"
+                  className="w-full h-11 font-semibold"
                   onClick={handleCheckout}
                   disabled={cart.length === 0}
                 >
