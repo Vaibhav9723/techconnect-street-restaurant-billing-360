@@ -285,9 +285,22 @@ export default function Billing() {
         {/* Cart Panel - Right */}
         <div className="w-[400px] border-l flex flex-col bg-card">
           <div className="p-6 border-b">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <h2 className="text-lg font-semibold">Cart</h2>
-              <Badge variant="outline">{cart.length} items</Badge>
+              <div className="flex items-center gap-2">
+                {cart.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearCart}
+                    data-testid="button-clear-cart"
+                  >
+                    <X className="h-4 w-4 mr-1" />
+                    Clear
+                  </Button>
+                )}
+                <Badge variant="outline">{cart.length} items</Badge>
+              </div>
             </div>
           </div>
 
@@ -414,32 +427,6 @@ export default function Billing() {
                   </Select>
                 </div>
 
-                {paymentMode === 'online' && (
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Online Amount</label>
-                    <Input
-                      type="number"
-                      value={total.toFixed(2)}
-                      disabled
-                      className="h-10 tabular-nums"
-                      data-testid="input-online-amount-disabled"
-                    />
-                  </div>
-                )}
-
-                {paymentMode === 'cash' && (
-                  <div>
-                    <label className="text-sm font-medium mb-2 block">Cash Amount</label>
-                    <Input
-                      type="number"
-                      value={total.toFixed(2)}
-                      disabled
-                      className="h-10 tabular-nums"
-                      data-testid="input-cash-amount-disabled"
-                    />
-                  </div>
-                )}
-
                 {paymentMode === 'both' && (
                   <div className="space-y-3">
                     <div>
@@ -473,27 +460,15 @@ export default function Billing() {
               </div>
             )}
 
-            <div className="space-y-2">
-              <Button
-                className="w-full h-12 font-semibold"
-                onClick={handleCheckout}
-                disabled={cart.length === 0}
-                data-testid="button-checkout"
-              >
-                <Check className="h-5 w-5 mr-2" />
-                Checkout
-              </Button>
-              {cart.length > 0 && (
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={clearCart}
-                  data-testid="button-clear-cart"
-                >
-                  Clear Cart
-                </Button>
-              )}
-            </div>
+            <Button
+              className="w-full h-12 font-semibold"
+              onClick={handleCheckout}
+              disabled={cart.length === 0}
+              data-testid="button-checkout"
+            >
+              <Check className="h-5 w-5 mr-2" />
+              Checkout
+            </Button>
           </div>
         </div>
       </div>
@@ -747,30 +722,6 @@ export default function Billing() {
                       </Select>
                     </div>
 
-                    {paymentMode === 'online' && (
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Online Amount</label>
-                        <Input
-                          type="number"
-                          value={total.toFixed(2)}
-                          disabled
-                          className="h-10 tabular-nums"
-                        />
-                      </div>
-                    )}
-
-                    {paymentMode === 'cash' && (
-                      <div>
-                        <label className="text-sm font-medium mb-2 block">Cash Amount</label>
-                        <Input
-                          type="number"
-                          value={total.toFixed(2)}
-                          disabled
-                          className="h-10 tabular-nums"
-                        />
-                      </div>
-                    )}
-
                     {paymentMode === 'both' && (
                       <div className="space-y-3">
                         <div>
@@ -802,25 +753,14 @@ export default function Billing() {
                   </div>
                 )}
 
-                <div className="space-y-2">
-                  <Button
-                    className="w-full h-12 font-semibold"
-                    onClick={handleCheckout}
-                    disabled={cart.length === 0}
-                  >
-                    <Check className="h-5 w-5 mr-2" />
-                    Checkout
-                  </Button>
-                  {cart.length > 0 && (
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={clearCart}
-                    >
-                      Clear Cart
-                    </Button>
-                  )}
-                </div>
+                <Button
+                  className="w-full h-12 font-semibold"
+                  onClick={handleCheckout}
+                  disabled={cart.length === 0}
+                >
+                  <Check className="h-5 w-5 mr-2" />
+                  Checkout
+                </Button>
               </div>
             </div>
           )}
