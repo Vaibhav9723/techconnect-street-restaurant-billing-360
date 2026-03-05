@@ -4,13 +4,17 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Bill, Settings } from '@shared/schema';
+import { Bill, Settings } from "@/types/schema";
 import { format } from 'date-fns';
 import { Printer, Download, X } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { cn } from '@/lib/utils';
+import { BillItem } from "@/types/schema";
+import { sendInvoiceWhatsApp } from "../utils/whatsapp";
+
 
 interface InvoiceModalProps {
   bill: Bill;
@@ -20,7 +24,6 @@ interface InvoiceModalProps {
 
 export function InvoiceModal({ bill, settings, onClose }: InvoiceModalProps) {
   const invoiceRef = useRef<HTMLDivElement>(null);
-
   const handlePrint = () => {
     window.print();
   };
@@ -60,7 +63,11 @@ export function InvoiceModal({ bill, settings, onClose }: InvoiceModalProps) {
       >
         <DialogHeader className="print:hidden">
           <DialogTitle>Invoice Preview</DialogTitle>
+          <DialogDescription>
+            Review, print or download the generated invoice.
+          </DialogDescription>
         </DialogHeader>
+
 
         <div className="space-y-4">
           {/* Invoice Preview */}
@@ -80,25 +87,33 @@ export function InvoiceModal({ bill, settings, onClose }: InvoiceModalProps) {
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2 print:hidden">
+          <div className="space-y-2 print:hidden">
+            {/* Row 1 */}
+            <div className="flex gap-2">
+              <Button className="flex-1" onClick={handlePrint}>
+                <Printer className="h-4 w-4 mr-2" />
+                Print
+              </Button>
+
+              <Button
+                className="flex-1"
+                variant="outline"
+                onClick={handleDownloadPDF}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download PDF
+              </Button>
+            </div>
+            {/* Row 2 */}
             <Button
-              className="flex-1"
-              onClick={handlePrint}
-              data-testid="button-print"
+              className="w-full bg-green-600 hover:bg-green-700 text-white"
+              onClick={() => sendInvoiceWhatsApp(bill, settings)}
+              disabled={!bill.customerPhone}
             >
-              <Printer className="h-4 w-4 mr-2" />
-              Print
-            </Button>
-            <Button
-              className="flex-1"
-              variant="outline"
-              onClick={handleDownloadPDF}
-              data-testid="button-download-pdf"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Download PDF
+              📲 Send on WhatsApp
             </Button>
           </div>
+
         </div>
       </DialogContent>
     </Dialog>
@@ -106,6 +121,9 @@ export function InvoiceModal({ bill, settings, onClose }: InvoiceModalProps) {
 }
 
 function A4Invoice({ bill, settings }: { bill: Bill; settings: Settings }) {
+  const cgst = bill.cgst ?? 0;
+  const sgst = bill.sgst ?? 0;
+  const igst = bill.igst ?? 0;
   return (
     <div className="font-mono">
       {/* Header */}
@@ -165,12 +183,33 @@ function A4Invoice({ bill, settings }: { bill: Bill; settings: Settings }) {
               <span className="tabular-nums">-₹{bill.discount.toFixed(2)}</span>
             </div>
           )}
-          {settings.gstOn && (
+          {/* {settings.gstOn && (
             <div className="flex justify-between">
               <span>GST ({settings.gstPercent}%):</span>
               <span className="tabular-nums">+₹{bill.gst.toFixed(2)}</span>
             </div>
-          )}
+          )} */}
+          {settings.gstOn && cgst > 0 && (
+              <div className="flex justify-between">
+                <span>CGST:</span>
+                <span className="tabular-nums">₹{cgst.toFixed(2)}</span>
+              </div>
+            )}
+
+            {settings.gstOn && sgst > 0 && (
+              <div className="flex justify-between">
+                <span>SGST:</span>
+                <span className="tabular-nums">₹{sgst.toFixed(2)}</span>
+              </div>
+            )}
+
+            {settings.gstOn && igst > 0 && (
+              <div className="flex justify-between">
+                <span>IGST:</span>
+                <span className="tabular-nums">₹{igst.toFixed(2)}</span>
+              </div>
+            )}
+
           <div className="flex justify-between font-bold text-lg pt-2 border-t-2 border-black">
             <span>Total:</span>
             <span className="tabular-nums">₹{bill.total.toFixed(2)}</span>
@@ -192,24 +231,24 @@ function A4Invoice({ bill, settings }: { bill: Bill; settings: Settings }) {
             <>
               <div className="ml-4">
                 <span>• Online Paid: </span>
-                <span className="tabular-nums">₹{bill.onlineAmount.toFixed(2)}</span>
+                <span className="tabular-nums">₹{(bill.onlineAmount ?? 0).toFixed(2)}</span>
               </div>
               <div className="ml-4">
                 <span>• Cash Paid: </span>
-                <span className="tabular-nums">₹{bill.cashAmount.toFixed(2)}</span>
+                <span className="tabular-nums">₹{(bill.cashAmount ?? 0).toFixed(2)}</span>
               </div>
             </>
           )}
           {bill.paymentMode === 'online' && (
             <div className="ml-4">
               <span>• Online Amount: </span>
-              <span className="tabular-nums">₹{bill.onlineAmount.toFixed(2)}</span>
+              <span className="tabular-nums">₹{(bill.onlineAmount ?? 0).toFixed(2)}</span>
             </div>
           )}
           {bill.paymentMode === 'cash' && (
             <div className="ml-4">
               <span>• Cash Amount: </span>
-              <span className="tabular-nums">₹{bill.cashAmount.toFixed(2)}</span>
+              <span className="tabular-nums">₹{(bill.cashAmount ?? 0).toFixed(2)}</span>
             </div>
           )}
         </div>
@@ -224,6 +263,10 @@ function A4Invoice({ bill, settings }: { bill: Bill; settings: Settings }) {
 }
 
 function ReceiptInvoice({ bill, settings }: { bill: Bill; settings: Settings }) {
+  const cgst = bill.cgst ?? 0;
+const sgst = bill.sgst ?? 0;
+const igst = bill.igst ?? 0;
+
   return (
     <div className="font-mono text-sm">
       {/* Header */}
@@ -274,12 +317,33 @@ function ReceiptInvoice({ bill, settings }: { bill: Bill; settings: Settings }) 
             <span className="tabular-nums">-₹{bill.discount.toFixed(2)}</span>
           </div>
         )}
-        {settings.gstOn && (
+        {/* {settings.gstOn && (
           <div className="flex justify-between">
             <span>GST ({settings.gstPercent}%):</span>
             <span className="tabular-nums">+₹{bill.gst.toFixed(2)}</span>
           </div>
-        )}
+        )} */}
+        {settings.gstOn && cgst > 0 && (
+  <div className="flex justify-between">
+    <span>CGST ({settings.gstPercent / 2}%):</span>
+    <span className="tabular-nums">₹{cgst.toFixed(2)}</span>
+  </div>
+)}
+
+{settings.gstOn && sgst > 0 && (
+  <div className="flex justify-between">
+    <span>SGST ({settings.gstPercent / 2}%):</span>
+    <span className="tabular-nums">₹{sgst.toFixed(2)}</span>
+  </div>
+)}
+
+{settings.gstOn && igst > 0 && (
+  <div className="flex justify-between">
+    <span>IGST ({settings.gstPercent}%):</span>
+    <span className="tabular-nums">₹{igst.toFixed(2)}</span>
+  </div>
+)}
+
       </div>
 
       <div className="border-b border-black mb-3" />
@@ -301,8 +365,8 @@ function ReceiptInvoice({ bill, settings }: { bill: Bill; settings: Settings }) 
         </div>
         {bill.paymentMode === 'both' && (
           <>
-            <div className="ml-2">Online: ₹{bill.onlineAmount.toFixed(2)}</div>
-            <div className="ml-2">Cash: ₹{bill.cashAmount.toFixed(2)}</div>
+            <div className="ml-2">Online: ₹{(bill.onlineAmount ?? 0).toFixed(2)}</div>
+            <div className="ml-2">Cash: ₹{(bill.cashAmount ?? 0).toFixed(2)}</div>
           </>
         )}
       </div>
@@ -316,3 +380,4 @@ function ReceiptInvoice({ bill, settings }: { bill: Bill; settings: Settings }) 
     </div>
   );
 }
+

@@ -1,7 +1,3 @@
-/**
- * LocalStorage keys for encrypted POS data
- */
-
 export const STORAGE_KEYS = {
   // Encryption/auth keys
   SALT: 'pos_salt',

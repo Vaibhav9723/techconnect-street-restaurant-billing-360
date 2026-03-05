@@ -1,6 +1,9 @@
 import { useState } from 'react';
-import { useCategories, useProducts } from '@/hooks/useEncryptedStorage';
-import { Category, Product, InsertCategory } from '@shared/schema';
+import { useCategories } from "@/hooks/usePOSData";
+import { useProducts } from "@/hooks/usePOSData";
+
+import { Category, InsertCategory, Bill, Product } from "@/types/schema";
+
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,15 +17,18 @@ import {
 import { Plus, Edit, Trash2, FolderOpen } from 'lucide-react';
 import { nanoid } from 'nanoid';
 import { useToast } from '@/hooks/use-toast';
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function Categories() {
-  const { data: categories, setData: setCategories, isLoading } = useCategories();
+  // const { data: categories, setData: setCategories, isLoading } = useCategories();
   const { data: products, setData: setProducts } = useProducts();
   const { toast } = useToast();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState<InsertCategory>({ name: '' });
+  const {data: categories,addOrUpdateCategory,deleteCategory,isLoading,} = useCategories();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const handleAdd = () => {
     setEditingCategory(null);
@@ -36,69 +42,65 @@ export default function Categories() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    const productsInCategory = products.filter((p: Product) => p.categoryId === id);
-    
-    if (productsInCategory.length > 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Cannot delete',
-        description: `This category has ${productsInCategory.length} product(s). Remove them first.`,
-      });
-      return;
-    }
-
-    if (!confirm('Are you sure you want to delete this category?')) return;
-
-    const updated = categories.filter((c: Category) => c.id !== id);
-    await setCategories(updated);
-    toast({
-      title: 'Category deleted',
-      description: 'The category has been removed',
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name.trim()) {
       toast({
-        variant: 'destructive',
-        title: 'Invalid input',
-        description: 'Please enter a category name',
+        variant: "destructive",
+        title: "Invalid input",
+        description: "Please enter a category name",
       });
       return;
     }
 
-    if (editingCategory) {
-      const updated = categories.map((c: Category) =>
-        c.id === editingCategory.id
-          ? { ...c, name: formData.name }
-          : c
-      );
-      await setCategories(updated);
+    // ✅ 1️⃣ CLOSE DIALOG FIRST (IMPORTANT)
+    setIsDialogOpen(false);
+    setEditingCategory(null);
+    setFormData({ name: "" });
+
+    try {
+      if (editingCategory) {
+        await addOrUpdateCategory({
+          ...editingCategory,
+          name: formData.name,
+          updatedAt: Date.now(),
+        });
+
+        toast({
+          title: "Category updated",
+          description: `${formData.name} has been updated`,
+        });
+      } else {
+        await addOrUpdateCategory({
+          id: nanoid(),
+          name: formData.name,
+          updatedAt: Date.now(),
+        });
+
+        toast({
+          title: "Category added",
+          description: `${formData.name} has been added`,
+        });
+      }
+    } catch (err) {
       toast({
-        title: 'Category updated',
-        description: `${formData.name} has been updated`,
-      });
-    } else {
-      const newCategory: Category = {
-        id: nanoid(),
-        name: formData.name,
-      };
-      await setCategories([...categories, newCategory]);
-      toast({
-        title: 'Category added',
-        description: `${formData.name} has been added`,
+        variant: "destructive",
+        title: "Failed",
+        description: "Something went wrong",
       });
     }
-
-    setIsDialogOpen(false);
   };
 
+  // const getProductCount = (categoryId: string) => {
+  //   return products.filter((p: Product) => p.categoryId === categoryId).length;
+  // };
   const getProductCount = (categoryId: string) => {
-    return products.filter((p: Product) => p.categoryId === categoryId).length;
-  };
+  return products.filter(
+    (p) => p.categoryId === categoryId && !p.isDeleted
+  ).length;
+};
+
 
   if (isLoading) {
     return (
@@ -164,11 +166,18 @@ export default function Categories() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
+                        {/* <Button
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDelete(category.id)}
                           data-testid={`button-delete-${category.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button> */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteId(category.id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -182,11 +191,16 @@ export default function Categories() {
         </Card>
       )}
 
+
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent data-testid="dialog-category-form">
+        <DialogContent
+          data-testid="dialog-category-form"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+        >
           <DialogHeader>
             <DialogTitle>
-              {editingCategory ? 'Edit Category' : 'Add Category'}
+              {editingCategory ? "Edit Category" : "Add Category"}
             </DialogTitle>
           </DialogHeader>
 
@@ -200,8 +214,6 @@ export default function Categories() {
                 onChange={(e) => setFormData({ name: e.target.value })}
                 placeholder="Enter category name"
                 className="h-12"
-                data-testid="input-category-name"
-                autoFocus
                 required
               />
             </div>
@@ -210,18 +222,73 @@ export default function Categories() {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-                data-testid="button-cancel"
+                onClick={() => {
+                  setIsDialogOpen(false);
+                  setEditingCategory(null);
+                  setFormData({ name: "" });
+                }}
               >
                 Cancel
               </Button>
-              <Button type="submit" data-testid="button-save-category">
-                {editingCategory ? 'Update' : 'Add'}
+              <Button type="submit">
+                {editingCategory ? "Update" : "Add"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+  open={!!deleteId}
+  title="Delete Category"
+  description="Is category ko delete karne se related products par effect pad sakta hai."
+  onCancel={() => setDeleteId(null)}
+  onConfirm={() => {
+    const id = deleteId;
+    setDeleteId(null); // ✅ CLOSE FIRST
+
+    if (!id) return;
+
+    // const productsInCategory = products.filter(
+    //   (p) => p.categoryId === id
+    // );
+    const productsInCategory = products.filter(
+      (p) => p.categoryId === id && !p.isDeleted
+    );
+
+
+    if (productsInCategory.length > 0) {
+      toast({
+        variant: "destructive",
+        title: "Cannot delete",
+        description: `This category has ${productsInCategory.length} product(s). Remove them first.`,
+      });
+      return;
+    }
+
+    (async () => {
+      try {
+        await deleteCategory(id);
+
+        toast({
+          title: "Category deleted",
+          description: "The category has been removed",
+        });
+      } catch {
+        toast({
+          variant: "destructive",
+          title: "Delete failed",
+          description: "Something went wrong",
+        });
+      }
+    })();
+  }}
+/>
+
+
+
     </div>
   );
 }
+
+

@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import { useFirebaseAuth } from '@/hooks/useFirebaseAuth';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import logo from "@/assets/logo.png";
 
 const navItems = [
   { path: '/', label: 'Dashboard', icon: LayoutDashboard },
@@ -15,8 +16,9 @@ const navItems = [
 
 export function DesktopNavigation() {
   const [location, setLocation] = useLocation();
-  const { user, logout } = useFirebaseAuth();
+  const { user, logout,userProfile } = useFirebaseAuth();
   const { toast } = useToast();
+  const isSmall = window.innerWidth < 768;
 
   const handleLogout = async () => {
     try {
@@ -36,60 +38,119 @@ export function DesktopNavigation() {
   };
 
   return (
-    <header className="h-16 border-b bg-background flex items-center justify-between px-8 sticky top-0 z-50">
-      <div className="flex items-center gap-8">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-lg bg-primary flex items-center justify-center">
-            <ShoppingCart className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <h1 className="text-xl font-semibold">POS System</h1>
-        </div>
 
-        <nav className="flex gap-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = location === item.path;
+  <header className="h-16 border-b bg-background flex items-center justify-between px-3 md:px-4 lg:px-8 gap-2">
+  {/* Left */}
+  <div className="flex items-center gap-6">
 
-            return (
-              <Link
-                key={item.path}
-                href={item.path}
-                className={cn(
-                  'px-6 py-2 rounded-t-lg flex items-center gap-2 text-sm font-medium transition-colors hover-elevate',
-                  isActive
-                    ? 'bg-muted text-foreground'
-                    : 'text-muted-foreground'
-                )}
-                data-testid={`nav-${item.label.toLowerCase()}`}
-              >
-                <Icon className="h-4 w-4" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
+    {/* Logo */}
+    <div className="flex items-center gap-1 md:gap-2 whitespace-nowrap">
+      {/* <ShoppingCart className="h-5 w-5 md:h-5 md:w-5 lg:h-6 lg:w-6 text-primary" />
 
-      <div className="flex items-center gap-4">
-        {user && (
-          <div className="text-xs text-muted-foreground">
-            {user.email}
-          </div>
-        )}
-        <div className="text-xs text-muted-foreground tabular-nums" data-testid="text-current-time">
-          {new Date().toLocaleDateString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </div>
-        <Button variant="ghost" size="sm" onClick={handleLogout} data-testid="button-nav-logout">
-          <LogOut className="h-4 w-4 mr-2" />
-          Logout
-        </Button>
-      </div>
+      <h1 className="billing-logo text-sm md:text-base lg:text-xl font-bold text-primary">
+        Billing 360
+      </h1> */}
+      <div className="flex items-center gap-2 whitespace-nowrap">
+  <img
+    src={logo}
+    alt="logo"
+    // className="h-8 md:h-9 lg:h-10 w-auto"
+    // className="h-9 w-auto object-contain"
+     className="h-12 md:h-12 lg:h-14 w-auto object-contain"
+  />
+
+  <span className="font-semibold text-sm md:text-base lg:text-lg">
+    Billing 360°
+  </span>
+</div>
+    </div>
+
+    {/* Nav */}
+    <nav className="hidden md:flex items-center gap-1 md:gap-1 lg:gap-2">
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        const isActive = location === item.path;
+
+        return (
+          <Link
+            key={item.path}
+            href={item.path}
+            className={cn(
+              "flex items-center gap-1 lg:gap-2 rounded lg:rounded-lg  transition whitespace-nowrap",
+              "px-2 md:px-2 lg:px-4 py-1 md:py-1 lg:py-2",
+              "text-xs md:text-xs lg:text-sm",
+              isActive
+                ? "bg-primary text-white"
+                : "text-muted-foreground hover:bg-muted"
+            )}
+          >
+            <Icon className="h-3 w-3 md:h-3 md:w-3 lg:h-4 lg:w-4" />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+    </nav>
+  </div>
+
+  {/* Right */}
+  <div className="flex items-center gap-2 md:gap-2 lg:gap-4">
+
+  <div className="hidden md:block text-[10px] md:text-xs lg:text-sm text-muted-foreground tabular-nums">
+    {new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })}
+  </div>
+
+  {/* <Button variant="ghost" size="icon" className="h-7 w-7 md:h-7 md:w-7 lg:h-9 lg:w-9">
+    <LogOut className="h-3 w-3 md:h-3 md:w-3 lg:h-4 lg:w-4" />
+  </Button> */}
+  <Button
+  variant="ghost"
+  size="icon"
+  className="h-7 w-7 md:h-7 md:w-7 lg:h-9 lg:w-9"
+  onClick={handleLogout}
+>
+  <LogOut className="h-3 w-3 md:h-3 md:w-3 lg:h-4 lg:w-4" />
+</Button>
+
+</div>
+</header>
+  );
+}
+
+export function MobileHeader() {
+  const { logout } = useFirebaseAuth();
+
+  return (
+    <header className="md:hidden h-14 border-b bg-background flex items-center justify-between px-4">
+
+      {/* Left Logo + Name */}
+      {/* <div className="flex items-center gap-2">
+        <ShoppingCart className="h-5 w-5 text-primary" />
+
+        <span className="billing-logo text-base font-semibold text-primary">
+          Billing 360
+        </span>
+      </div> */}
+<div className="flex items-center gap-2">
+  <img
+    src={logo}
+    alt="Tech Connect 360"
+    className="h-10 w-auto object-contain"
+  />
+
+  <span className="font-semibold text-sm">
+    Billing 360°
+  </span>
+</div>
+      {/* Right Logout */}
+      <Button variant="ghost" size="icon" onClick={logout}>
+        <LogOut className="h-5 w-5" />
+      </Button>
+
     </header>
   );
 }

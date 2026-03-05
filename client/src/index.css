@@ -1,6 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Batangas&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.billing-logo {
+  font-family: "Batangas", serif;
+  letter-spacing: 0.5px;
+}
 
 /* LIGHT MODE */
 :root {
@@ -242,26 +249,6 @@
   }
 }
 
-/**
- * Using the elevate system.
- * Automatic contrast adjustment.
- *
- * <element className="hover-elevate" />
- * <element className="active-elevate-2" />
- *
- * // Using the tailwind utility when a data attribute is "on"
- * <element className="toggle-elevate data-[state=on]:toggle-elevated" />
- * // Or manually controlling the toggle state
- * <element className="toggle-elevate toggle-elevated" />
- *
- * Elevation systems have to handle many states.
- * - not-hovered, vs. hovered vs. active  (three mutually exclusive states)
- * - toggled or not
- * - focused or not (this is not handled with these utilities)
- *
- * Even without handling focused or not, this is six possible combinations that
- * need to be distinguished from eachother visually.
- */
 @layer utilities {
 
   /* Hide ugly search cancel button in Chrome until we can style it properly */
@@ -352,4 +339,45 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+}
+
+/* Prevent casual screenshot through browser API */
+* {
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  user-select: none !important;
+}
+
+/* Prevent screen recording on some devices (opacity hack) */
+.protected-content {
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  user-select: none !important;
+
+  /* prevent some capture tools */
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ===== Modern Thin Scrollbar ===== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(120,120,120,0.4);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(120,120,120,0.7);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
 }

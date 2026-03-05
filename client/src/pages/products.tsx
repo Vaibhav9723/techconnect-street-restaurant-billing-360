@@ -1,43 +1,68 @@
-import { useState } from 'react';
-import { useProducts, useCategories } from '@/hooks/useEncryptedStorage';
-import { Product, Category, InsertProduct } from '@shared/schema';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { useState, useMemo } from "react";
+import { useCategories } from "@/hooks/usePOSData";
+import { useProducts } from "@/hooks/usePOSData";
+
+import { Product, Category, InsertProduct } from "@/types/schema";
+
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { Plus, Edit, Trash2, Package } from 'lucide-react';
-import { nanoid } from 'nanoid';
-import { useToast } from '@/hooks/use-toast';
+} from "@/components/ui/select";
+
+import { Plus, Edit, Trash2, Package } from "lucide-react";
+import { nanoid } from "nanoid";
+import { useToast } from "@/hooks/use-toast";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function Products() {
-  const { data: products, setData: setProducts, isLoading } = useProducts();
+  const {
+    data: products,
+    setData: setProducts,
+    isLoading,
+    updateProductOnline,
+  } = useProducts();
+
   const { data: categories } = useCategories();
   const { toast } = useToast();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [formData, setFormData] = useState<InsertProduct>({
-    name: '',
-    price: 0,
-    categoryId: '',
-  });
 
+  const [formData, setFormData] = useState<InsertProduct>({
+    name: "",
+    price: 0,
+    categoryId: "",
+  });
+  const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
+
+
+  /* ================= FILTER (SOFT DELETE) ================= */
+  const visibleProducts = useMemo(
+    () => products.filter((p) => !p.isDeleted),
+    [products]
+  );
+
+  /* ================= ADD / EDIT ================= */
   const handleAdd = () => {
     setEditingProduct(null);
-    setFormData({ name: '', price: 0, categoryId: categories[0]?.id || '' });
+    setFormData({
+      name: "",
+      price: 0,
+      categoryId: categories[0]?.id || "",
+    });
     setIsDialogOpen(true);
   };
 
@@ -51,59 +76,141 @@ export default function Products() {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
+  /* ================= SOFT DELETE ================= */
+  const handleDelete = async (product: Product) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
 
-    const updated = products.filter((p: Product) => p.id !== id);
+    const deletedProduct: Product = {
+      ...product,
+      isDeleted: true,
+      deletedAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+
+    const updated = products.map((p) =>
+      p.id === product.id ? deletedProduct : p
+    );
+
+    // local
     await setProducts(updated);
+
+    // online (same write API)
+    await updateProductOnline(deletedProduct);
+
     toast({
-      title: 'Product deleted',
-      description: 'The product has been removed',
+      title: "Product deleted",
+      description: "Product has been removed safely",
     });
   };
 
+  /* ================= SAVE ================= */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name || !formData.categoryId || formData.price <= 0) {
       toast({
-        variant: 'destructive',
-        title: 'Invalid input',
-        description: 'Please fill all fields correctly',
+        variant: "destructive",
+        title: "Invalid input",
+        description: "Please fill all fields correctly",
       });
       return;
     }
 
-    if (editingProduct) {
-      const updated = products.map((p: Product) =>
-        p.id === editingProduct.id
-          ? { ...p, ...formData }
-          : p
-      );
-      await setProducts(updated);
-      toast({
-        title: 'Product updated',
-        description: `${formData.name} has been updated`,
-      });
-    } else {
-      const newProduct: Product = {
-        id: nanoid(),
-        ...formData,
-        addCount: 0,
-      };
-      await setProducts([...products, newProduct]);
-      toast({
-        title: 'Product added',
-        description: `${formData.name} has been added`,
-      });
-    }
+    // if (editingProduct) {
+    //   const updatedProduct: Product = {
+    //     ...editingProduct,
+    //     ...formData,
+    //     updatedAt: Date.now(),
+    //   };
 
-    setIsDialogOpen(false);
+    //   const updated = products.map((p) =>
+    //     p.id === editingProduct.id ? updatedProduct : p
+    //   );
+
+    //   await setProducts(updated);
+    //   await updateProductOnline(updatedProduct);
+
+    //   toast({
+    //     title: "Product updated",
+    //     description: `${formData.name} updated`,
+    //   });
+    // } else {
+    //   const newProduct: Product = {
+    //     id: nanoid(),
+    //     ...formData,
+    //     addCount: 0,
+    //     updatedAt: Date.now(),
+    //     isDeleted: false,
+    //   };
+
+    //   await setProducts([...products, newProduct]);
+    //   await updateProductOnline(newProduct);
+
+    //   toast({
+    //     title: "Product added",
+    //     description: `${formData.name} added`,
+    //   });
+    // }
+
+    // setIsDialogOpen(false);
+    // setEditingProduct(null);
+    // setFormData({ name: "", price: 0, categoryId: "" });
+    // ✅ CLOSE FIRST (NO FLICKER)
+setIsDialogOpen(false);
+setEditingProduct(null);
+
+try {
+  if (editingProduct) {
+    const updatedProduct: Product = {
+      ...editingProduct,
+      ...formData,
+      updatedAt: Date.now(),
+    };
+
+    const updated = products.map((p) =>
+      p.id === editingProduct.id ? updatedProduct : p
+    );
+
+    await setProducts(updated);
+    await updateProductOnline(updatedProduct);
+
+    toast({
+      title: "Product updated",
+      description: `${formData.name} updated`,
+    });
+  } else {
+    const newProduct: Product = {
+      id: nanoid(),
+      ...formData,
+      addCount: 0,
+      updatedAt: Date.now(),
+      isDeleted: false,
+    };
+
+    await setProducts([...products, newProduct]);
+    await updateProductOnline(newProduct);
+
+    toast({
+      title: "Product added",
+      description: `${formData.name} added`,
+    });
+  }
+} catch {
+  toast({
+    variant: "destructive",
+    title: "Failed",
+    description: "Something went wrong",
+  });
+}
+
+// reset form
+setFormData({ name: "", price: 0, categoryId: "" });
+
+
   };
 
-  const getCategoryName = (categoryId: string) => {
-    return categories.find((c: Category) => c.id === categoryId)?.name || 'Unknown';
-  };
+  const getCategoryName = (id: string) =>
+    categories.find((c: Category) => c.id === id)?.name || "Unknown";
 
   if (isLoading) {
     return (
@@ -115,159 +222,274 @@ export default function Products() {
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
-      <div className="flex items-center justify-between">
+      {/* <div className="flex items-center justify-between"> */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-semibold">Products</h1>
-        <Button onClick={handleAdd} data-testid="button-add-product">
+
+        <Button
+            className="w-full sm:w-auto"
+          onClick={() => {
+            if (categories.length === 0) {
+              toast({
+                variant: "destructive",
+                title: "No category found",
+                description: "Please add a category before adding products",
+              });
+              return;
+            }
+            handleAdd();
+          }}
+        >
           <Plus className="h-5 w-5 mr-2" />
           Add Product
         </Button>
+
       </div>
 
-      {products.length === 0 ? (
-        <Card className="p-12">
-          <div className="text-center">
-            <Package className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No products yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Get started by adding your first product
-            </p>
-            <Button onClick={handleAdd}>
-              <Plus className="h-5 w-5 mr-2" />
-              Add Product
-            </Button>
-          </div>
+      {visibleProducts.length === 0 ? (
+
+        <Card className="p-12 text-center">
+          <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+          <h3 className="text-lg font-semibold mb-2">No products yet</h3>
+          <p className="text-muted-foreground mb-4">
+            Add a product to start billing
+          </p>
+          <Button
+            onClick={() => {
+              if (categories.length === 0) {
+                toast({
+                  variant: "destructive",
+                  title: "No category found",
+                  description: "Please add a category first",
+                });
+                return;
+              }
+              handleAdd();
+            }}
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Add Product
+          </Button>
         </Card>
       ) : (
-        <Card className="overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="text-left px-4 py-3 text-sm font-semibold">Name</th>
-                  <th className="text-left px-4 py-3 text-sm font-semibold">Category</th>
-                  <th className="text-right px-4 py-3 text-sm font-semibold">Price</th>
-                  <th className="text-right px-4 py-3 text-sm font-semibold">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {products.map((product: Product) => (
-                  <tr
-                    key={product.id}
-                    className="border-b hover-elevate"
-                    data-testid={`product-row-${product.id}`}
-                  >
-                    <td className="px-4 py-3 font-medium">{product.name}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground">
+        // <Card>
+        //   <table className="w-full">
+        //     <thead>
+        //       <tr className="border-b bg-muted/50">
+        //         <th className="px-4 py-3 text-left">Name</th>
+        //         <th className="px-4 py-3 text-left">Category</th>
+        //         <th className="px-4 py-3 text-right">Price</th>
+        //         <th className="px-4 py-3 text-right">Actions</th>
+        //       </tr>
+        //     </thead>
+        //     <tbody>
+        //       {visibleProducts.map((product) => (
+        //         <tr key={product.id} className="border-b">
+        //           <td className="px-4 py-3 font-medium">{product.name}</td>
+        //           <td className="px-4 py-3 text-sm text-muted-foreground">
+        //             {getCategoryName(product.categoryId)}
+        //           </td>
+        //           <td className="px-4 py-3 text-right font-semibold">
+        //             ₹{product.price.toFixed(2)}
+        //           </td>
+        //           <td className="px-4 py-3 text-right">
+        //             <div className="flex justify-end gap-2">
+        //               <Button
+        //                 variant="ghost"
+        //                 size="icon"
+        //                 onClick={() => handleEdit(product)}
+        //               >
+        //                 <Edit className="h-4 w-4" />
+        //               </Button>
+        //               <Button
+        //                 variant="ghost"
+        //                 size="icon"
+        //                 onClick={() => setDeleteProduct(product)}
+        //               >
+        //                 <Trash2 className="h-4 w-4" />
+        //               </Button>
+        //             </div>
+        //           </td>
+        //         </tr>
+        //       ))}
+        //     </tbody>
+        //   </table>
+        // </Card>
+
+        <Card className="overflow-x-auto">
+          <table className="w-full text-sm table-auto">
+            <thead>
+              <tr className="border-b bg-muted/50">
+                <th className="px-2 sm:px-4 py-2 sm:py-3 text-left">
+                  Name
+                </th>
+                <th className="px-2 sm:px-4 py-2 sm:py-3 text-left hidden sm:table-cell">
+                  Category
+                </th>
+                <th className="px-2 sm:px-4 py-2 sm:py-3 text-right">
+                  Price
+                </th>
+                <th className="px-2 sm:px-4 py-2 sm:py-3 text-right">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {visibleProducts.map((product) => (
+                <tr key={product.id} className="border-b">
+                  {/* Product Name */}
+                  <td className="px-2 sm:px-4 py-3">
+                    <div className="font-medium break-words leading-snug">
+                      {product.name}
+                    </div>
+
+                    {/* Mobile me category neeche dikhe */}
+                    <div className="text-xs text-muted-foreground sm:hidden">
                       {getCategoryName(product.categoryId)}
-                    </td>
-                    <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                      ₹{product.price.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(product)}
-                          data-testid={`button-edit-${product.id}`}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(product.id)}
-                          data-testid={`button-delete-${product.id}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </td>
+
+                  {/* Desktop Category */}
+                  <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">
+                    {getCategoryName(product.categoryId)}
+                  </td>
+
+                  {/* Price */}
+                  <td className="px-2 sm:px-4 py-3 text-right font-semibold whitespace-nowrap">
+                    ₹{product.price.toFixed(2)}
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-2 sm:px-4 py-3 text-right">
+                    <div className="flex justify-end gap-1 sm:gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(product)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeleteProduct(product)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </Card>
+
+
       )}
 
+      {/* ADD / EDIT MODAL */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent data-testid="dialog-product-form">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {editingProduct ? 'Edit Product' : 'Add Product'}
+              {editingProduct ? "Edit Product" : "Add Product"}
             </DialogTitle>
           </DialogHeader>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                Product Name <span className="text-destructive">*</span>
-              </label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Enter product name"
-                className="h-12"
-                data-testid="input-product-name"
-                required
-              />
-            </div>
+            <Input
+              placeholder="Product name"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              required
+            />
 
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                Category <span className="text-destructive">*</span>
-              </label>
-              <Select
-                value={formData.categoryId}
-                onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
-              >
-                <SelectTrigger className="h-12" data-testid="select-category">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((cat: Category) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <Select
+              value={formData.categoryId}
+              onValueChange={(v) =>
+                setFormData({ ...formData, categoryId: v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select category" />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-            <div>
-              <label className="text-sm font-medium mb-2 block">
-                Price (₹) <span className="text-destructive">*</span>
-              </label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={formData.price}
-                onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                placeholder="0.00"
-                className="h-12"
-                data-testid="input-product-price"
-                required
-              />
-            </div>
+            <Input
+              type="number"
+              step="0.01"
+              value={formData.price}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  price: parseFloat(e.target.value) || 0,
+                })
+              }
+              required
+            />
 
             <DialogFooter>
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setIsDialogOpen(false)}
-                data-testid="button-cancel"
               >
                 Cancel
               </Button>
-              <Button type="submit" data-testid="button-save-product">
-                {editingProduct ? 'Update' : 'Add'}
+              <Button type="submit">
+                {editingProduct ? "Update" : "Add"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={!!deleteProduct}
+        title="Delete Product"
+        description="Is product ko delete karne ke baad billing me use nahi hoga."
+        onCancel={() => setDeleteProduct(null)}
+        onConfirm={() => {
+          const p = deleteProduct;
+          setDeleteProduct(null); // ✅ CLOSE FIRST (NO FLICKER)
+
+          if (!p) return;
+
+          const deletedProduct: Product = {
+            ...p,
+            isDeleted: true,
+            deletedAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+
+          const updated = products.map((x) =>
+            x.id === p.id ? deletedProduct : x
+          );
+
+          (async () => {
+            await setProducts(updated);
+            await updateProductOnline(deletedProduct);
+
+            toast({
+              title: "Product deleted",
+              description: "Product removed safely",
+            });
+          })();
+        }}
+      />
+
     </div>
   );
 }
+

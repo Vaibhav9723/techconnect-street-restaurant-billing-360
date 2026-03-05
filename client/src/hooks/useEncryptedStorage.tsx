@@ -13,7 +13,6 @@ export function useEncryptedStorage<T>(
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load encrypted data
   const loadData = useCallback(async () => {
     if (!cryptoKey || !isUnlocked) {
       setData(defaultValueRef.current);
@@ -57,7 +56,6 @@ export function useEncryptedStorage<T>(
       setData(newData);
       setError(null);
       
-      // Dispatch custom event to notify other components
       window.dispatchEvent(new CustomEvent('storage-update', { 
         detail: { key: storageKey } 
       }));
@@ -68,12 +66,13 @@ export function useEncryptedStorage<T>(
     }
   }, [cryptoKey, isUnlocked, storageKey]);
 
-  // Load data when unlocked
-  useEffect(() => {
-    if (isUnlocked && cryptoKey) {
-      loadData();
-    }
-  }, [isUnlocked, cryptoKey, loadData]);
+useEffect(() => {
+  if (isUnlocked && cryptoKey) {
+    loadData(); // 🔥 ALWAYS load when unlocked
+  }
+}, [isUnlocked, cryptoKey, loadData]);
+
+
 
   // Listen for storage updates from other components
   useEffect(() => {
@@ -100,7 +99,7 @@ export function useEncryptedStorage<T>(
 }
 
 // Specialized hooks for each data type
-import { Product, Category, Bill, Settings, TokenCounter } from '@shared/schema';
+import { TokenCounter, Bill, Product,Category , Settings  } from "@/types/schema";
 
 export function useProducts() {
   return useEncryptedStorage<Product[]>(STORAGE_KEYS.PRODUCTS, []);
@@ -116,14 +115,41 @@ export function useBills() {
 
 export function useSettings() {
   return useEncryptedStorage<Settings>(STORAGE_KEYS.SETTINGS, {
+    businessMode: "vendor",
     shopName: 'My Shop',
     address: '',
     gstOn: false,
+    gstMode: "EXCLUSIVE",
+    gstType: "CGST_SGST",
     gstPercent: 18,
     tokenVisible: true,
     printLayout: '80mm' as const,
     theme: 'light' as const,
     primaryColor: 'blue' as const,
+    offers: {
+    enabled: false,
+    applyMode: "AUTO",
+
+    billAmountOffer: {
+      enabled: false,
+      minBillAmount: 500,
+      nextBillMinAmount: 300,
+      discountType: "PERCENT",
+      discountValue: 10,
+      validDays: 7,
+    },
+
+    repeatCustomerOffer: {
+      enabled: false,
+      repeatCount: 3,
+      discountType: "FLAT",
+      discountValue: 50,
+    },
+
+    footerText: "",
+    feedbackText: "",
+    feedbackLink: "",
+  },
   });
 }
 

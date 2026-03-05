@@ -10,7 +10,7 @@ import { Eye, EyeOff, Lock, Mail, Loader2, AlertCircle } from 'lucide-react';
 
 export default function Login() {
   const [, setLocation] = useLocation();
-  const { user, role, login } = useFirebaseAuth();
+  const { user, login } = useFirebaseAuth();
   const { toast } = useToast();
   
   const [email, setEmail] = useState('');
@@ -19,15 +19,20 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   // Redirect if already logged in
+  // useEffect(() => {
+  //   if (user && role) {
+  //     if (role === 'admin') {
+  //       setLocation('/admin/dashboard');
+  //     } else if (role === 'client') {
+  //       setLocation('/client/dashboard');
+  //     }
+  //   }
+  // }, [user, role, setLocation]);
   useEffect(() => {
-    if (user && role) {
-      if (role === 'admin') {
-        setLocation('/admin/dashboard');
-      } else if (role === 'client') {
-        setLocation('/client/dashboard');
-      }
+    if (user) {
+      setLocation("/");
     }
-  }, [user, role, setLocation]);
+  }, [user, setLocation]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -128,30 +133,33 @@ export default function Login() {
           <div className="space-y-2">
             <label className="text-sm font-medium">Password</label>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input
-                type={showPassword ? 'text' : 'password'}
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pl-10 pr-10 h-12"
-                disabled={loading}
-                data-testid="input-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover-elevate active-elevate-2 p-1 rounded"
-                disabled={loading}
-                data-testid="button-toggle-password"
-              >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
-              </button>
-            </div>
+  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+
+  <Input
+    type={showPassword ? 'text' : 'password'}
+    placeholder="Enter your password"
+    value={password}
+    onChange={(e) => setPassword(e.target.value)}
+    className="!pl-10 !pr-12 h-12"
+    disabled={loading}
+    data-testid="input-password"
+  />
+
+  <button
+    type="button"
+    onClick={() => setShowPassword(!showPassword)}
+    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:bg-accent p-1 rounded"
+    disabled={loading}
+    data-testid="button-toggle-password"
+  >
+    {showPassword ? (
+      <EyeOff className="h-5 w-5" />
+    ) : (
+      <Eye className="h-5 w-5" />
+    )}
+  </button>
+</div>
+
           </div>
 
           <Button
