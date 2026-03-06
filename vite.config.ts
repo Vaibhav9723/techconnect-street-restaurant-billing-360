@@ -21,17 +21,22 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
+      "@": path.resolve(import.meta.dirname,"client", "src"),
+      // "@": path.resolve(__dirname, "client/src"),
       "@shared": path.resolve(import.meta.dirname, "shared"),
       "@assets": path.resolve(import.meta.dirname, "attached_assets"),
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
+  // build: {
+  //   outDir: path.resolve(import.meta.dirname, "dist/public"),
+  //   emptyOutDir: true,
+  // },
+  
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
-    emptyOutDir: true,
-  },
-  server: {
+  outDir: "dist",
+  emptyOutDir: true,
+},server: {
     fs: {
       strict: true,
       deny: ["**/.*"],
