@@ -33,8 +33,28 @@
 
 // Ab me setting ka thik kar raha hu yaha se 
 
+// import { doc, setDoc } from "firebase/firestore";
+// import { requireDB } from "./base";
+// import { Settings } from "@/types/schema";
+
+// export async function saveVendorSettings(
+//   uid: string,
+//   settings: Settings
+// ) {
+//   console.log("🔥 VENDOR SETTINGS SAVE", uid);
+
+//   const db = requireDB();
+
+//   await setDoc(
+//     doc(db, "vendors", uid, "settings", "default"),
+//     settings,
+//     { merge: true }
+//   );
+// }
+
+
 import { doc, setDoc } from "firebase/firestore";
-import { requireDB } from "./base";
+import { requireDB, sanitizeForFirestore } from "./base";
 import { Settings } from "@/types/schema";
 
 export async function saveVendorSettings(
@@ -45,9 +65,15 @@ export async function saveVendorSettings(
 
   const db = requireDB();
 
+  // 🔒 sanitize before Firestore + add updatedAt
+  const safeSettings = sanitizeForFirestore({
+    ...settings,
+    updatedAt: Date.now(),
+  });
+
   await setDoc(
     doc(db, "vendors", uid, "settings", "default"),
-    settings,
+    safeSettings,
     { merge: true }
   );
 }
