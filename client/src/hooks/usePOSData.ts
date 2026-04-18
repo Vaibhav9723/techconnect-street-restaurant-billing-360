@@ -1,3 +1,154 @@
+// import { usePOSMode } from "@/context/POSModeContext";
+// import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+
+// import {
+//   useProducts as useLocalProducts,
+//   useCategories as useLocalCategories,
+//   useBills as useLocalBills,
+//   useSettings as useLocalSettings,
+// } from "@/hooks/useEncryptedStorage";
+
+// import { writeProductOnline } from "@/services/firestore/products";
+// import { writeCategoryOnline } from "@/services/firestore/categories";
+// import { deleteCategoryOnline } from "@/services/firestore/categories";
+// import { addBillOnline } from "@/services/firestore/bills";
+// // import { saveSettings } from "@/services/firestore/settings";
+// import { saveVendorSettings } from "@/services/firestore/settings";
+
+
+// import { Product, Category, Bill, Settings } from "@/types/schema";
+
+// export function useProducts() {
+//   const mode = usePOSMode();
+//   const { user } = useFirebaseAuth();
+//   const local = useLocalProducts();
+
+//   const setData = async (products: Product[]) => {
+//     await local.setData(products);
+//   };
+
+//   const updateProductOnline = async (product: Product): Promise<void> => {
+//     if (mode === "online" && user) {
+//       await writeProductOnline(user.uid, product);
+//     }
+//   };
+
+//   const replaceFromFirebase = async (products: Product[]) => {
+//     await local.setData(products);
+//     await local.reload();
+//   };
+
+//   return {
+//     ...local,
+//     setData,
+//     updateProductOnline,   // 🔒 ALWAYS PRESENT
+//     replaceFromFirebase,
+//   };
+// }
+
+// export function useCategories() {
+//   const mode = usePOSMode();
+//   const { user } = useFirebaseAuth();
+//   const local = useLocalCategories();
+
+//   const addOrUpdateCategory = async (category: Category) => {
+//     // local update
+//     const exists = local.data.some(c => c.id === category.id);
+//     const updated = exists
+//       ? local.data.map(c => (c.id === category.id ? category : c))
+//       : [...local.data, category];
+
+//     await local.setData(updated);
+
+//     // 🔥 firebase write
+//     if (mode === "online" && user) {
+//       await writeCategoryOnline(user.uid, category);
+//     }
+//   };
+
+//   const deleteCategory = async (categoryId: string) => {
+//     await local.setData(local.data.filter(c => c.id !== categoryId));
+
+//     if (mode === "online" && user) {
+//       await deleteCategoryOnline(user.uid, categoryId);
+//     }
+//   };
+
+//   const replaceFromFirebase = async (categories: Category[]) => {
+//     await local.setData(categories);
+//     await local.reload();
+//   };
+
+//   return {
+//     ...local,
+//     addOrUpdateCategory,
+//     deleteCategory,
+//     replaceFromFirebase,
+//   };
+// }
+
+// export function useBills() {
+//   const mode = usePOSMode();
+//   const { user } = useFirebaseAuth();
+//   const local = useLocalBills();
+
+//   const addBill = async (bill: Bill) => {
+//     // 1️⃣ Always local first
+//     await local.setData([bill, ...local.data]);
+
+//     // 2️⃣ Online → append to Firebase
+//     // if (mode === "online" && user) {
+//     //   try {
+//     //     await addBillOnline(user.uid, bill);
+//     //   } catch (e) {
+//     //     console.error("Online bill write failed", e);
+//     //   }
+//     // }
+//     if (mode === "online" && user) {
+//       addBillOnline(user.uid, bill).catch((e) => {
+//       console.error("Online bill failed (safe)", e);
+//     });
+// }
+//   };
+
+//   // 🔥 Used ONLY during online login sync
+//   const replaceFromFirebase = async (bills: Bill[]) => {
+//     await local.setData(bills);
+//     await local.reload();
+//   };
+
+//   return {
+//     ...local,
+//     addBill,
+//     replaceFromFirebase,
+//   };
+// }
+
+// export function useSettings() {
+//   const mode = usePOSMode();
+//   const { user } = useFirebaseAuth();
+//   const local = useLocalSettings();
+
+//   const setData = async (settings: Settings) => {
+//     await local.setData(settings);
+
+//     if (mode === "online" && user) {
+//       await saveVendorSettings(user.uid, settings);
+//     }
+//   };
+
+//   const replaceFromFirebase = async (settings: Settings) => {
+//     await local.setData(settings);
+//     await local.reload();
+//   };
+
+//   return {
+//     ...local,
+//     setData,
+//     replaceFromFirebase,
+//   };
+// }
+
 import { usePOSMode } from "@/context/POSModeContext";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 
@@ -12,9 +163,7 @@ import { writeProductOnline } from "@/services/firestore/products";
 import { writeCategoryOnline } from "@/services/firestore/categories";
 import { deleteCategoryOnline } from "@/services/firestore/categories";
 import { addBillOnline } from "@/services/firestore/bills";
-// import { saveSettings } from "@/services/firestore/settings";
 import { saveVendorSettings } from "@/services/firestore/settings";
-
 
 import { Product, Category, Bill, Settings } from "@/types/schema";
 
@@ -29,19 +178,29 @@ export function useProducts() {
 
   const updateProductOnline = async (product: Product): Promise<void> => {
     if (mode === "online" && user) {
-      await writeProductOnline(user.uid, product);
+      try {
+        await writeProductOnline(user.uid, product);
+        const current = local.data;
+        const updated = current.map((p) =>
+          p.id === product.id ? { ...p, isSynced: true } : p
+        );
+        await local.setData(updated);
+      } catch (e) {
+        console.error("Product online write failed (will retry on reconnect)", e);
+      }
     }
   };
 
   const replaceFromFirebase = async (products: Product[]) => {
-    await local.setData(products);
+    const marked = products.map((p) => ({ ...p, isSynced: true }));
+    await local.setData(marked);
     await local.reload();
   };
 
   return {
     ...local,
     setData,
-    updateProductOnline,   // 🔒 ALWAYS PRESENT
+    updateProductOnline,
     replaceFromFirebase,
   };
 }
@@ -52,30 +211,67 @@ export function useCategories() {
   const local = useLocalCategories();
 
   const addOrUpdateCategory = async (category: Category) => {
-    // local update
-    const exists = local.data.some(c => c.id === category.id);
+    const categoryWithSync: Category = {
+      ...category,
+      isSynced: false,
+      updatedAt: Date.now(),
+    };
+
+    const exists = local.data.some((c) => c.id === categoryWithSync.id);
     const updated = exists
-      ? local.data.map(c => (c.id === category.id ? category : c))
-      : [...local.data, category];
+      ? local.data.map((c) => (c.id === categoryWithSync.id ? categoryWithSync : c))
+      : [...local.data, categoryWithSync];
 
     await local.setData(updated);
 
-    // 🔥 firebase write
     if (mode === "online" && user) {
-      await writeCategoryOnline(user.uid, category);
+      try {
+        await writeCategoryOnline(user.uid, categoryWithSync);
+        const current = local.data;
+        const synced = current.map((c) =>
+          c.id === categoryWithSync.id ? { ...c, isSynced: true } : c
+        );
+        await local.setData(synced);
+      } catch (e) {
+        console.error("Category online write failed (will retry on reconnect)", e);
+      }
     }
   };
 
   const deleteCategory = async (categoryId: string) => {
-    await local.setData(local.data.filter(c => c.id !== categoryId));
+    const category = local.data.find((c) => c.id === categoryId);
+    if (!category) return;
+
+    const softDeleted: Category = {
+      ...category,
+      isDeleted: true,
+      deletedAt: Date.now(),
+      updatedAt: Date.now(),
+      isSynced: false,
+    };
+
+    const updated = local.data.map((c) =>
+      c.id === categoryId ? softDeleted : c
+    );
+    await local.setData(updated);
 
     if (mode === "online" && user) {
-      await deleteCategoryOnline(user.uid, categoryId);
+      try {
+        await writeCategoryOnline(user.uid, softDeleted);
+        const current = local.data;
+        const synced = current.map((c) =>
+          c.id === categoryId ? { ...c, isSynced: true } : c
+        );
+        await local.setData(synced);
+      } catch (e) {
+        console.error("Category delete sync failed (will retry on reconnect)", e);
+      }
     }
   };
 
   const replaceFromFirebase = async (categories: Category[]) => {
-    await local.setData(categories);
+    const marked = categories.map((c) => ({ ...c, isSynced: true }));
+    await local.setData(marked);
     await local.reload();
   };
 
@@ -93,27 +289,30 @@ export function useBills() {
   const local = useLocalBills();
 
   const addBill = async (bill: Bill) => {
-    // 1️⃣ Always local first
-    await local.setData([bill, ...local.data]);
+    const billWithSync: Bill = {
+      ...bill,
+      isSynced: false,
+    };
 
-    // 2️⃣ Online → append to Firebase
-    // if (mode === "online" && user) {
-    //   try {
-    //     await addBillOnline(user.uid, bill);
-    //   } catch (e) {
-    //     console.error("Online bill write failed", e);
-    //   }
-    // }
+    await local.setData([billWithSync, ...local.data]);
+
     if (mode === "online" && user) {
-      addBillOnline(user.uid, bill).catch((e) => {
-      console.error("Online bill failed (safe)", e);
-    });
-}
+      try {
+        await addBillOnline(user.uid, billWithSync);
+        const current = local.data;
+        const updated = [billWithSync, ...current].map((b) =>
+          b.id === billWithSync.id ? { ...b, isSynced: true } : b
+        );
+        await local.setData(updated);
+      } catch (e) {
+        console.error("Online bill write failed (will retry on reconnect)", e);
+      }
+    }
   };
 
-  // 🔥 Used ONLY during online login sync
   const replaceFromFirebase = async (bills: Bill[]) => {
-    await local.setData(bills);
+    const marked = bills.map((b) => ({ ...b, isSynced: true }));
+    await local.setData(marked);
     await local.reload();
   };
 
@@ -130,15 +329,26 @@ export function useSettings() {
   const local = useLocalSettings();
 
   const setData = async (settings: Settings) => {
-    await local.setData(settings);
+    const settingsWithSync: Settings = {
+      ...settings,
+      isSynced: false,
+      updatedAt: Date.now(),
+    };
+
+    await local.setData(settingsWithSync);
 
     if (mode === "online" && user) {
-      await saveVendorSettings(user.uid, settings);
+      try {
+        await saveVendorSettings(user.uid, settingsWithSync);
+        await local.setData({ ...settingsWithSync, isSynced: true });
+      } catch (e) {
+        console.error("Settings online write failed (will retry on reconnect)", e);
+      }
     }
   };
 
   const replaceFromFirebase = async (settings: Settings) => {
-    await local.setData(settings);
+    await local.setData({ ...settings, isSynced: true });
     await local.reload();
   };
 
@@ -148,5 +358,3 @@ export function useSettings() {
     replaceFromFirebase,
   };
 }
-
-

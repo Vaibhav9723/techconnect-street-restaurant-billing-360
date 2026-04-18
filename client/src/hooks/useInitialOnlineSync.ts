@@ -109,7 +109,7 @@
 //   }, [mode, user,bills.data.length]);
 // }
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { usePOSMode } from "@/context/POSModeContext";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
 import { addBillOnline } from "@/services/firestore/bills";
@@ -128,6 +128,8 @@ import {
 } from "@/hooks/usePOSData";
 
 import { mergeById } from "@/services/sync/mergeById";
+import { flushUnsyncedData, markAllSynced } from "@/services/sync/flushQueue";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 export function useInitialOnlineSync() {
   const mode = usePOSMode();
@@ -139,6 +141,47 @@ export function useInitialOnlineSync() {
   const bills = useBills();
   const settings = useSettings();
   const { userProfile } = useFirebaseAuth();
+
+  const flushSyncQueue = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      console.log("🔄 Sync queue flush started");
+
+      const result = await flushUnsyncedData(user.uid, {
+        products: products.data,
+        categories: categories.data,
+        bills: bills.data,
+        settings: settings.data,
+      });
+
+      if (result.products > 0) {
+        const synced = markAllSynced(products.data);
+        await products.setData(synced);
+      }
+      if (result.categories > 0) {
+        const synced = markAllSynced(categories.data);
+        await categories.setData(synced);
+      }
+      if (result.bills > 0) {
+        const synced = markAllSynced(bills.data);
+        await bills.setData(synced);
+      }
+      if (result.settings) {
+        await settings.setData({ ...settings.data, isSynced: true });
+      }
+
+      console.log("✅ Sync queue flush completed", result);
+    } catch (error) {
+      console.error("❌ Sync queue flush failed", error);
+    }
+  }, [user, products, categories, bills, settings]);
+
+  useOnlineStatus(() => {
+    if (mode === "online" || userProfile?.posType === "online") {
+      flushSyncQueue();
+    }
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -153,46 +196,37 @@ export function useInitialOnlineSync() {
 
         /* ================= PRODUCTS ================= */
         const remoteProducts = await fetchProducts(user.uid);
-        const mergedProducts = mergeById(
-          products.data,
-          remoteProducts
-        );
+        const mergedProducts = mergeById(products.data, remoteProducts);
         await products.setData(mergedProducts);
 
         /* ================= CATEGORIES ================= */
         const remoteCategories = await fetchCategories(user.uid);
-        const mergedCategories = mergeById(
-          categories.data,
-          remoteCategories
-        );
+        const mergedCategories = mergeById(categories.data, remoteCategories);
         await categories.setData(mergedCategories);
 
         /* ================= BILLS ================= */
-        // Fetch remote bills ONCE — reuse for both merge + upload check
         const remoteBills = await fetchBillsAfter(user.uid, null);
 
         if (bills.data.length === 0) {
-          // No local bills — load all from Firebase
           if (remoteBills.length) {
-            await bills.replaceFromFirebase(remoteBills.reverse());
+            await bills.replaceFromFirebase(
+              remoteBills.map((b) => ({ ...b, isSynced: true })).reverse()
+            );
           }
         } else {
-          // Merge: find bills newer than our latest
           const latestDate = bills.data[0].dateISO;
-          const newBills = remoteBills.filter(b => b.dateISO > latestDate);
+          const newBills = remoteBills.filter((b) => b.dateISO > latestDate);
           if (newBills.length) {
             await bills.replaceFromFirebase([
-              ...newBills.reverse(),
+              ...newBills.map((b) => ({ ...b, isSynced: true })).reverse(),
               ...bills.data,
             ]);
           }
         }
 
         /* ================= UPLOAD LOCAL OFFLINE BILLS ================= */
-        // 🔒 ONLY sync if THIS USER is ONLINE POS
         if (userProfile?.posType === "online") {
-          const remoteIds = new Set(remoteBills.map(b => b.id));
-
+          const remoteIds = new Set(remoteBills.map((b) => b.id));
           for (const bill of bills.data) {
             if (!remoteIds.has(bill.id)) {
               try {
@@ -206,16 +240,18 @@ export function useInitialOnlineSync() {
 
         /* ================= SETTINGS ================= */
         const remoteSettings = await fetchSettings(user.uid);
-
         if (remoteSettings) {
-          await settings.replaceFromFirebase(remoteSettings);
+          await settings.replaceFromFirebase({ ...remoteSettings, isSynced: true });
         }
+
+        /* ================= FLUSH UNSYNCED QUEUE ================= */
+        await flushSyncQueue();
+
         console.log("✅ Online merge sync completed");
       } catch (error) {
         console.error("❌ Online sync failed", error);
-        syncedRef.current = false; // allow retry
+        syncedRef.current = false;
       }
-      
     };
 
     run();
