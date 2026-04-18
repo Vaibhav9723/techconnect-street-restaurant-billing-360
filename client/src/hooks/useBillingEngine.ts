@@ -364,10 +364,14 @@
 //   };
 // }
 
+// client/src/hooks/useBillingEngine.ts
 import { useState, useMemo } from "react";
 import { nanoid } from "nanoid";
 import { Bill, BillItem } from "@/types/schema";
 import { useBills, useSettings } from "@/hooks/usePOSData";
+import { usePOSMode } from "@/context/POSModeContext";
+import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+import { addBillOnline } from "@/services/firestore/bills";
 import { useToast } from "@/hooks/use-toast";
 import { useRunningCarts } from "./useRunningCarts";
 import { useTokens } from "@/hooks/useEncryptedStorage";
@@ -386,8 +390,11 @@ export function useBillingEngine(
     | { type: "takeaway" }
     | { type: "table"; tableId: string }
 ) {
+  const mode = usePOSMode();
+  const { user } = useFirebaseAuth();
+
   const { data: running, setData: setRunning } = useRunningCarts();
-  const { addBill } = useBills();
+  const { data: billsData, setData: setBillsData } = useBills();
   const { data: settings } = useSettings();
   const { toast } = useToast();
   const { data: tokens, setData: setTokens } = useTokens();
@@ -693,7 +700,26 @@ export function useBillingEngine(
       saveCustomer(customerProfile);
     }
 
-    await addBill(bill);
+    // Compute new local state from current closure (avoids stale closure)
+    const newBillsState = [bill, ...billsData];
+
+    // Write to local FIRST (immediate UI update)
+    await setBillsData(newBillsState);
+
+    // Try Firebase write
+    if (mode === "online" && user) {
+      try {
+        await addBillOnline(user.uid, bill);
+        // Mark synced in the computed state (avoids stale closure)
+        const syncedState = newBillsState.map((b) =>
+          b.id === bill.id ? { ...b, isSynced: true } : b
+        );
+        await setBillsData(syncedState);
+      } catch (e) {
+        console.error("Bill online write failed (will retry on reconnect)", e);
+      }
+    }
+
     clearCart();
 
     return bill;

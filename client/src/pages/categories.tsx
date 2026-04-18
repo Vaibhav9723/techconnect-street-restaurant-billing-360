@@ -290,35 +290,47 @@
 //   );
 // }
 
-import { useState, useMemo } from 'react';
+// client/src/pages/categories.tsx
+import { useState, useMemo } from "react";
 import { useCategories } from "@/hooks/usePOSData";
 import { useProducts } from "@/hooks/usePOSData";
+import { usePOSMode } from "@/context/POSModeContext";
+import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+import { writeCategoryOnline } from "@/services/firestore/categories";
 
-import { Category, InsertCategory, Bill, Product } from "@/types/schema";
+import { Category, InsertCategory, Product } from "@/types/schema";
 
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, FolderOpen } from 'lucide-react';
-import { nanoid } from 'nanoid';
-import { useToast } from '@/hooks/use-toast';
+} from "@/components/ui/dialog";
+import { Plus, Edit, Trash2, FolderOpen } from "lucide-react";
+import { nanoid } from "nanoid";
+import { useToast } from "@/hooks/use-toast";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function Categories() {
-  const { data: products, setData: setProducts } = useProducts();
+  const mode = usePOSMode();
+  const { user } = useFirebaseAuth();
+
+  const { data: products } = useProducts();
   const { toast } = useToast();
+
+  const {
+    data: categories,
+    setData: setCategoriesData,
+    isLoading,
+  } = useCategories();
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [formData, setFormData] = useState<InsertCategory>({ name: '' });
-  const {data: categories,addOrUpdateCategory,deleteCategory,isLoading,} = useCategories();
+  const [formData, setFormData] = useState<InsertCategory>({ name: "" });
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   /* ================= FILTER (SOFT DELETE) ================= */
@@ -329,7 +341,7 @@ export default function Categories() {
 
   const handleAdd = () => {
     setEditingCategory(null);
-    setFormData({ name: '' });
+    setFormData({ name: "" });
     setIsDialogOpen(true);
   };
 
@@ -357,22 +369,66 @@ export default function Categories() {
 
     try {
       if (editingCategory) {
-        await addOrUpdateCategory({
+        const updatedCategory: Category = {
           ...editingCategory,
           name: formData.name,
           updatedAt: Date.now(),
-        });
+          isSynced: false,
+        };
+
+        // Compute new local state from current closure
+        const newLocalState = categories.map((c) =>
+          c.id === editingCategory.id ? updatedCategory : c
+        );
+
+        // Write to local FIRST (immediate UI update)
+        await setCategoriesData(newLocalState);
+
+        // Try Firebase write
+        if (mode === "online" && user) {
+          try {
+            await writeCategoryOnline(user.uid, updatedCategory);
+            // Mark synced in the computed state (avoids stale closure)
+            const syncedState = newLocalState.map((c) =>
+              c.id === updatedCategory.id ? { ...c, isSynced: true } : c
+            );
+            await setCategoriesData(syncedState);
+          } catch (e) {
+            console.error("Category online write failed (will retry on reconnect)", e);
+          }
+        }
 
         toast({
           title: "Category updated",
           description: `${formData.name} has been updated`,
         });
       } else {
-        await addOrUpdateCategory({
+        const newCategory: Category = {
           id: nanoid(),
           name: formData.name,
           updatedAt: Date.now(),
-        });
+          isSynced: false,
+        };
+
+        // Compute new local state from current closure
+        const newLocalState = [...categories, newCategory];
+
+        // Write to local FIRST (immediate UI update)
+        await setCategoriesData(newLocalState);
+
+        // Try Firebase write
+        if (mode === "online" && user) {
+          try {
+            await writeCategoryOnline(user.uid, newCategory);
+            // Mark synced in the computed state (avoids stale closure)
+            const syncedState = newLocalState.map((c) =>
+              c.id === newCategory.id ? { ...c, isSynced: true } : c
+            );
+            await setCategoriesData(syncedState);
+          } catch (e) {
+            console.error("Category online write failed (will retry on reconnect)", e);
+          }
+        }
 
         toast({
           title: "Category added",
@@ -438,7 +494,7 @@ export default function Categories() {
                 </tr>
               </thead>
               <tbody>
-                {visibleCategories.map((category: Category) => (
+                {visibleCategories.map((category) => (
                   <tr
                     key={category.id}
                     className="border-b hover-elevate"
@@ -446,7 +502,7 @@ export default function Categories() {
                   >
                     <td className="px-4 py-3 font-medium">{category.name}</td>
                     <td className="px-4 py-3 text-right text-sm text-muted-foreground">
-                      {getProductCount(category.id)} item{getProductCount(category.id) !== 1 ? 's' : ''}
+                      {getProductCount(category.id)} item{getProductCount(category.id) !== 1 ? "s" : ""}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2">
@@ -545,21 +601,46 @@ export default function Categories() {
             return;
           }
 
-          (async () => {
-            try {
-              await deleteCategory(id);
+          // Find the category from FULL list (including soft-deleted) to preserve all fields
+          const category = categories.find((c) => c.id === id);
+          if (!category) return;
 
-              toast({
-                title: "Category deleted",
-                description: "The category has been removed",
-              });
-            } catch {
-              toast({
-                variant: "destructive",
-                title: "Delete failed",
-                description: "Something went wrong",
-              });
+          // Soft delete: mark isDeleted=true
+          const softDeleted: Category = {
+            ...category,
+            isDeleted: true,
+            deletedAt: Date.now(),
+            updatedAt: Date.now(),
+            isSynced: false,
+          };
+
+          // Compute new local state from current closure
+          const newLocalState = categories.map((c) =>
+            c.id === id ? softDeleted : c
+          );
+
+          (async () => {
+            // Write to local FIRST (immediate UI update)
+            await setCategoriesData(newLocalState);
+
+            // Try Firebase write
+            if (mode === "online" && user) {
+              try {
+                await writeCategoryOnline(user.uid, softDeleted);
+                // Mark synced in the computed state (avoids stale closure)
+                const syncedState = newLocalState.map((c) =>
+                  c.id === softDeleted.id ? { ...c, isSynced: true } : c
+                );
+                await setCategoriesData(syncedState);
+              } catch (e) {
+                console.error("Category delete sync failed (will retry on reconnect)", e);
+              }
             }
+
+            toast({
+              title: "Category deleted",
+              description: "The category has been removed",
+            });
           })();
         }}
       />

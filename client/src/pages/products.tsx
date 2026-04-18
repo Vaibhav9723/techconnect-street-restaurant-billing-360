@@ -414,6 +414,9 @@
 import { useState, useMemo } from "react";
 import { useCategories } from "@/hooks/usePOSData";
 import { useProducts } from "@/hooks/usePOSData";
+import { usePOSMode } from "@/context/POSModeContext";
+import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
+import { writeProductOnline } from "@/services/firestore/products";
 
 import { Product, Category, InsertProduct } from "@/types/schema";
 
@@ -441,11 +444,13 @@ import { useToast } from "@/hooks/use-toast";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function Products() {
+  const mode = usePOSMode();
+  const { user } = useFirebaseAuth();
+
   const {
     data: products,
     setData: setProducts,
     isLoading,
-    updateProductOnline,
   } = useProducts();
 
   const { data: categories } = useCategories();
@@ -467,13 +472,18 @@ export default function Products() {
     [products]
   );
 
+  const visibleCategories = useMemo(
+    () => categories.filter((c) => !c.isDeleted),
+    [categories]
+  );
+
   /* ================= ADD / EDIT ================= */
   const handleAdd = () => {
     setEditingProduct(null);
     setFormData({
       name: "",
       price: 0,
-      categoryId: categories[0]?.id || "",
+      categoryId: visibleCategories[0]?.id || "",
     });
     setIsDialogOpen(true);
   };
@@ -486,31 +496,6 @@ export default function Products() {
       categoryId: product.categoryId,
     });
     setIsDialogOpen(true);
-  };
-
-  /* ================= SOFT DELETE ================= */
-  const handleDelete = async (product: Product) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
-
-    const deletedProduct: Product = {
-      ...product,
-      isDeleted: true,
-      deletedAt: Date.now(),
-      updatedAt: Date.now(),
-      isSynced: false,
-    };
-
-    const updated = products.map((p) =>
-      p.id === product.id ? deletedProduct : p
-    );
-
-    await setProducts(updated);
-    await updateProductOnline(deletedProduct);
-
-    toast({
-      title: "Product deleted",
-      description: "Product has been removed safely",
-    });
   };
 
   /* ================= SAVE ================= */
@@ -538,12 +523,27 @@ export default function Products() {
           isSynced: false,
         };
 
-        const updated = products.map((p) =>
+        // Compute new local state from current closure
+        const newLocalState = products.map((p) =>
           p.id === editingProduct.id ? updatedProduct : p
         );
 
-        await setProducts(updated);
-        await updateProductOnline(updatedProduct);
+        // Write to local FIRST (immediate UI update)
+        await setProducts(newLocalState);
+
+        // Try Firebase write
+        if (mode === "online" && user) {
+          try {
+            await writeProductOnline(user.uid, updatedProduct);
+            // Mark synced in the computed state (avoids stale closure)
+            const syncedState = newLocalState.map((p) =>
+              p.id === updatedProduct.id ? { ...p, isSynced: true } : p
+            );
+            await setProducts(syncedState);
+          } catch (e) {
+            console.error("Product online write failed (will retry on reconnect)", e);
+          }
+        }
 
         toast({
           title: "Product updated",
@@ -559,8 +559,25 @@ export default function Products() {
           isSynced: false,
         };
 
-        await setProducts([...products, newProduct]);
-        await updateProductOnline(newProduct);
+        // Compute new local state from current closure
+        const newLocalState = [...products, newProduct];
+
+        // Write to local FIRST (immediate UI update)
+        await setProducts(newLocalState);
+
+        // Try Firebase write
+        if (mode === "online" && user) {
+          try {
+            await writeProductOnline(user.uid, newProduct);
+            // Mark synced in the computed state (avoids stale closure)
+            const syncedState = newLocalState.map((p) =>
+              p.id === newProduct.id ? { ...p, isSynced: true } : p
+            );
+            await setProducts(syncedState);
+          } catch (e) {
+            console.error("Product online write failed (will retry on reconnect)", e);
+          }
+        }
 
         toast({
           title: "Product added",
@@ -579,7 +596,7 @@ export default function Products() {
   };
 
   const getCategoryName = (id: string) =>
-    categories.find((c: Category) => c.id === id)?.name || "Unknown";
+    visibleCategories.find((c) => c.id === id)?.name || "Unknown";
 
   if (isLoading) {
     return (
@@ -597,7 +614,7 @@ export default function Products() {
         <Button
           className="w-full sm:w-auto"
           onClick={() => {
-            if (categories.length === 0) {
+            if (visibleCategories.length === 0) {
               toast({
                 variant: "destructive",
                 title: "No category found",
@@ -622,7 +639,7 @@ export default function Products() {
           </p>
           <Button
             onClick={() => {
-              if (categories.length === 0) {
+              if (visibleCategories.length === 0) {
                 toast({
                   variant: "destructive",
                   title: "No category found",
@@ -726,7 +743,7 @@ export default function Products() {
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((c) => (
+                {visibleCategories.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name}
                   </SelectItem>
@@ -782,13 +799,28 @@ export default function Products() {
             isSynced: false,
           };
 
-          const updated = products.map((x) =>
+          // Compute new local state from current closure
+          const newLocalState = products.map((x) =>
             x.id === p.id ? deletedProduct : x
           );
 
           (async () => {
-            await setProducts(updated);
-            await updateProductOnline(deletedProduct);
+            // Write to local FIRST (immediate UI update)
+            await setProducts(newLocalState);
+
+            // Try Firebase write
+            if (mode === "online" && user) {
+              try {
+                await writeProductOnline(user.uid, deletedProduct);
+                // Mark synced in the computed state (avoids stale closure)
+                const syncedState = newLocalState.map((x) =>
+                  x.id === deletedProduct.id ? { ...x, isSynced: true } : x
+                );
+                await setProducts(syncedState);
+              } catch (e) {
+                console.error("Product delete sync failed (will retry on reconnect)", e);
+              }
+            }
 
             toast({
               title: "Product deleted",
