@@ -33,27 +33,30 @@
 // }
 
 // client/src/services/sync/mergeById.ts
+
+// ─── FILE: client/src/services/sync/mergeById.ts ───────────────────
+
+
 export function mergeById<
   T extends {
     id: string;
     updatedAt?: number;
-    isSynced?: boolean;
     isDeleted?: boolean;
   }
 >(local: T[], remote: T[]): T[] {
   const map = new Map<string, T>();
 
-  // 1️⃣ Seed with local items (offline-first)
+  // 1. Seed with local items (offline-first)
   for (const item of local) {
     map.set(item.id, item);
   }
 
-  // 2️⃣ Merge remote — only overwrite local when remote is genuinely newer
+  // 2. Merge remote — only overwrite local when remote is genuinely newer
   for (const r of remote) {
     const l = map.get(r.id);
 
     if (!l) {
-      // Remote-only item — add it
+      // Remote-only item → add
       map.set(r.id, r);
       continue;
     }
@@ -61,32 +64,27 @@ export function mergeById<
     const lTime = l.updatedAt ?? 0;
     const rTime = r.updatedAt ?? 0;
 
-    // 🔒 Local is soft-deleted AND not older than remote
-    // → Keep local deleted state (prevent resurrection)
+    // Anti-resurrection: local is soft-deleted AND not older than remote
+    // → Keep local deleted state (prevents deleted items from reappearing)
     if (l.isDeleted && lTime >= rTime) {
       continue;
     }
 
-    // 🔒 Remote is soft-deleted AND not older than local
-    // → Propagate deletion from remote
+    // Propagate deletion: remote is soft-deleted AND not older than local
+    // → Accept remote deletion
     if (r.isDeleted && rTime >= lTime) {
       map.set(r.id, r);
       continue;
     }
 
-    // 🔒 Local is unsynced AND remote is same age or older
-    // → Preserve unsynced local data (don't overwrite with stale remote)
-    if (l.isSynced === false && rTime <= lTime) {
-      continue;
-    }
-
-    // 🏆 General rule: latest updatedAt wins
+    // General rule: latest updatedAt wins
+    // On tie (lTime === rTime) → keep local (offline-first)
     if (rTime > lTime) {
       map.set(r.id, r);
     }
   }
 
-  // 3️⃣ Stable sort by updatedAt (newest first)
+  // 3. Stable sort by updatedAt (newest first)
   return Array.from(map.values()).sort(
     (a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0)
   );
