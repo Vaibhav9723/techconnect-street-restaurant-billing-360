@@ -1,3 +1,5 @@
+// ─── FILE: client/src/services/sync/flushQueue.ts ──────────────────
+
 import { writeProductOnline } from "@/services/firestore/products";
 import { writeCategoryOnline } from "@/services/firestore/categories";
 import { addBillOnline } from "@/services/firestore/bills";
@@ -5,10 +7,10 @@ import { saveVendorSettings } from "@/services/firestore/settings";
 import { Product, Category, Bill, Settings } from "@/types/schema";
 
 export interface SyncResult {
-  syncedProductIds: string[];
-  syncedCategoryIds: string[];
-  syncedBillIds: string[];
-  settingsSynced: boolean;
+  uploadedProductIds: string[];
+  uploadedCategoryIds: string[];
+  uploadedBillIds: string[];
+  settingsUploaded: boolean;
 }
 
 export interface FlushInput {
@@ -18,95 +20,40 @@ export interface FlushInput {
   settings: Settings | null;
 }
 
-// ─── Helpers ────────────────────────────────────────────────────────
-
 function buildIdMap<T extends { id: string }>(items: T[]): Map<string, T> {
   const map = new Map<string, T>();
   for (const item of items) map.set(item.id, item);
   return map;
 }
 
-/**
- * Determine if a local item needs to be uploaded to remote.
- * Returns true when:
- *  - Item does not exist on remote (missing by id)
- *  - Local updatedAt > remote updatedAt (local is newer)
- *
- * Handles deleted items correctly:
- *  - Soft-deleted local item with higher updatedAt → upload (propagate deletion)
- *  - Non-deleted local item → upload if newer or missing
- */
 function needsUpload<T extends { id: string; updatedAt?: number }>(
   local: T,
   remoteMap: Map<string, T>
 ): boolean {
   const remote = remoteMap.get(local.id);
-  if (!remote) return true; // Missing from remote
-  const lTime = local.updatedAt ?? 0;
-  const rTime = remote.updatedAt ?? 0;
-  return lTime > rTime; // Local is newer
+  if (!remote) return true;
+  return (local.updatedAt ?? 0) > (remote.updatedAt ?? 0);
 }
 
-// ─── Per-type flush functions ───────────────────────────────────────
-
-async function flushProducts(
+async function flushType<T extends { id: string; updatedAt?: number }>(
   uid: string,
-  products: Product[],
-  remoteMap: Map<string, Product>
+  items: T[],
+  remoteMap: Map<string, T>,
+  uploadFn: (uid: string, item: T) => Promise<void>
 ): Promise<string[]> {
-  const synced: string[] = [];
-  for (const product of products) {
-    if (needsUpload(product, remoteMap)) {
+  const uploaded: string[] = [];
+  for (const item of items) {
+    if (needsUpload(item, remoteMap)) {
       try {
-        await writeProductOnline(uid, product);
-        synced.push(product.id);
+        await uploadFn(uid, item);
+        uploaded.push(item.id);
       } catch (e) {
-        console.error("Flush: product upload failed", product.id, e);
+        console.error("Flush upload failed", item.id, e);
       }
     }
   }
-  return synced;
+  return uploaded;
 }
-
-async function flushCategories(
-  uid: string,
-  categories: Category[],
-  remoteMap: Map<string, Category>
-): Promise<string[]> {
-  const synced: string[] = [];
-  for (const category of categories) {
-    if (needsUpload(category, remoteMap)) {
-      try {
-        await writeCategoryOnline(uid, category);
-        synced.push(category.id);
-      } catch (e) {
-        console.error("Flush: category upload failed", category.id, e);
-      }
-    }
-  }
-  return synced;
-}
-
-async function flushBills(
-  uid: string,
-  bills: Bill[],
-  remoteMap: Map<string, Bill>
-): Promise<string[]> {
-  const synced: string[] = [];
-  for (const bill of bills) {
-    if (needsUpload(bill, remoteMap)) {
-      try {
-        await addBillOnline(uid, bill);
-        synced.push(bill.id);
-      } catch (e) {
-        console.error("Flush: bill upload failed", bill.id, e);
-      }
-    }
-  }
-  return synced;
-}
-
-// ─── Main flush function ────────────────────────────────────────────
 
 export async function flushUnsyncedData(
   uid: string,
@@ -114,70 +61,38 @@ export async function flushUnsyncedData(
   remote: FlushInput
 ): Promise<SyncResult> {
   const result: SyncResult = {
-    syncedProductIds: [],
-    syncedCategoryIds: [],
-    syncedBillIds: [],
-    settingsSynced: false,
+    uploadedProductIds: [],
+    uploadedCategoryIds: [],
+    uploadedBillIds: [],
+    settingsUploaded: false,
   };
 
   const remoteProductMap = buildIdMap(remote.products);
   const remoteCategoryMap = buildIdMap(remote.categories);
   const remoteBillMap = buildIdMap(remote.bills);
 
-  // Upload products, categories, bills in parallel (each type sequential internally)
   const [productIds, categoryIds, billIds] = await Promise.all([
-    flushProducts(uid, local.products, remoteProductMap),
-    flushCategories(uid, local.categories, remoteCategoryMap),
-    flushBills(uid, local.bills, remoteBillMap),
+    flushType(uid, local.products, remoteProductMap, writeProductOnline),
+    flushType(uid, local.categories, remoteCategoryMap, writeCategoryOnline),
+    flushType(uid, local.bills, remoteBillMap, addBillOnline),
   ]);
 
-  result.syncedProductIds = productIds;
-  result.syncedCategoryIds = categoryIds;
-  result.syncedBillIds = billIds;
+  result.uploadedProductIds = productIds;
+  result.uploadedCategoryIds = categoryIds;
+  result.uploadedBillIds = billIds;
 
-  // Settings: latest updatedAt wins
   if (local.settings) {
     const localTime = local.settings.updatedAt ?? 0;
     const remoteTime = remote.settings?.updatedAt ?? 0;
     if (!remote.settings || localTime > remoteTime) {
       try {
         await saveVendorSettings(uid, local.settings);
-        result.settingsSynced = true;
+        result.settingsUploaded = true;
       } catch (e) {
         console.error("Flush: settings upload failed", e);
       }
     }
   }
 
-  console.log("✅ Flush complete:", {
-    products: result.syncedProductIds.length,
-    categories: result.syncedCategoryIds.length,
-    bills: result.syncedBillIds.length,
-    settings: result.settingsSynced,
-  });
-
   return result;
-}
-
-// ─── Synced marking helpers ─────────────────────────────────────────
-
-/**
- * Mark only the items whose ids are in syncedIds as isSynced: true.
- * Items not in syncedIds keep their original isSynced value.
- */
-export function markItemsSynced<T extends { id: string; isSynced?: boolean }>(
-  items: T[],
-  syncedIds: Set<string>
-): T[] {
-  return items.map((item) =>
-    syncedIds.has(item.id) ? { ...item, isSynced: true } : item
-  );
-}
-
-/**
- * Mark all items as isSynced: true.
- * Use only when you are certain all items are on remote.
- */
-export function markAllSynced<T extends { isSynced?: boolean }>(items: T[]): T[] {
-  return items.map((item) => ({ ...item, isSynced: true }));
 }

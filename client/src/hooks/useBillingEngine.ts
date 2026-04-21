@@ -364,8 +364,9 @@
 //   };
 // }
 
-// client/src/hooks/useBillingEngine.ts
-import { useState, useMemo } from "react";
+// ─── FILE: client/src/hooks/useBillingEngine.ts ────────────────────
+
+import { useState, useMemo, useRef } from "react";
 import { nanoid } from "nanoid";
 import { Bill, BillItem } from "@/types/schema";
 import { useBills, useSettings } from "@/hooks/usePOSData";
@@ -390,14 +391,17 @@ export function useBillingEngine(
     | { type: "takeaway" }
     | { type: "table"; tableId: string }
 ) {
-  const mode = usePOSMode();
-  const { user } = useFirebaseAuth();
-
   const { data: running, setData: setRunning } = useRunningCarts();
   const { data: billsData, setData: setBillsData } = useBills();
   const { data: settings } = useSettings();
   const { toast } = useToast();
   const { data: tokens, setData: setTokens } = useTokens();
+  const mode = usePOSMode();
+  const { user } = useFirebaseAuth();
+
+  // Ref to always have latest bills without stale closure
+  const billsRef = useRef(billsData);
+  billsRef.current = billsData;
 
   const cart =
     cartKey.type === "takeaway"
@@ -590,10 +594,6 @@ export function useBillingEngine(
       ? currentToken.count + 1
       : undefined;
 
-    if (settings.tokenVisible) {
-      await setTokens({ ...currentToken, count: tokenNumber! });
-    }
-
     let customerProfile = null;
 
     if (customerPhone) {
@@ -657,8 +657,6 @@ export function useBillingEngine(
       }
     }
 
-    const now = Date.now();
-
     const bill: Bill = {
       id: nanoid(),
       dateISO: new Date().toISOString(),
@@ -676,8 +674,7 @@ export function useBillingEngine(
       tableId: meta.tableId,
       customerName: customerName || "Guest Customer",
       customerPhone: customerPhone || undefined,
-      updatedAt: now,
-      isSynced: false,
+      updatedAt: Date.now(),
     };
 
     if (paymentMode === "online") {
@@ -700,23 +697,24 @@ export function useBillingEngine(
       saveCustomer(customerProfile);
     }
 
-    // Compute new local state from current closure (avoids stale closure)
-    const newBillsState = [bill, ...billsData];
+    // ─── STALE CLOSURE FIX ─────────────────────────────────────
+    // 1. Compute new bills from ref (always fresh, no stale closure)
+    const newBills = [bill, ...billsRef.current];
 
-    // Write to local FIRST (immediate UI update)
-    await setBillsData(newBillsState);
+    // 2. Save to local immediately (BEFORE any other async ops)
+    await setBillsData(newBills);
 
-    // Try Firebase write
+    // 3. Update token AFTER bill is saved locally
+    if (settings.tokenVisible) {
+      await setTokens({ ...currentToken, count: tokenNumber! });
+    }
+
+    // 4. Firebase write (after local save, never re-read billsData)
     if (mode === "online" && user) {
       try {
         await addBillOnline(user.uid, bill);
-        // Mark synced in the computed state (avoids stale closure)
-        const syncedState = newBillsState.map((b) =>
-          b.id === bill.id ? { ...b, isSynced: true } : b
-        );
-        await setBillsData(syncedState);
       } catch (e) {
-        console.error("Bill online write failed (will retry on reconnect)", e);
+        console.error("Bill online write failed", e);
       }
     }
 

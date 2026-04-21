@@ -411,7 +411,9 @@
 //   );
 // }
 
-import { useState, useMemo } from "react";
+// ─── FILE: client/src/pages/products.tsx ───────────────────────────
+
+import { useState, useMemo, useRef } from "react";
 import { useCategories } from "@/hooks/usePOSData";
 import { useProducts } from "@/hooks/usePOSData";
 import { usePOSMode } from "@/context/POSModeContext";
@@ -444,9 +446,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function Products() {
-  const mode = usePOSMode();
-  const { user } = useFirebaseAuth();
-
   const {
     data: products,
     setData: setProducts,
@@ -455,6 +454,11 @@ export default function Products() {
 
   const { data: categories } = useCategories();
   const { toast } = useToast();
+  const mode = usePOSMode();
+  const { user } = useFirebaseAuth();
+
+  const productsRef = useRef(products);
+  productsRef.current = products;
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -466,7 +470,6 @@ export default function Products() {
   });
   const [deleteProduct, setDeleteProduct] = useState<Product | null>(null);
 
-  /* ================= FILTER (SOFT DELETE) ================= */
   const visibleProducts = useMemo(
     () => products.filter((p) => !p.isDeleted),
     [products]
@@ -477,7 +480,6 @@ export default function Products() {
     [categories]
   );
 
-  /* ================= ADD / EDIT ================= */
   const handleAdd = () => {
     setEditingProduct(null);
     setFormData({
@@ -498,7 +500,37 @@ export default function Products() {
     setIsDialogOpen(true);
   };
 
-  /* ================= SAVE ================= */
+  const handleDelete = async (product: Product) => {
+    if (!confirm("Are you sure you want to delete this product?")) return;
+
+    const now = Date.now();
+    const deletedProduct: Product = {
+      ...product,
+      isDeleted: true,
+      deletedAt: now,
+      updatedAt: now,
+    };
+
+    const updated = productsRef.current.map((p) =>
+      p.id === product.id ? deletedProduct : p
+    );
+
+    await setProducts(updated);
+
+    if (mode === "online" && user) {
+      try {
+        await writeProductOnline(user.uid, deletedProduct);
+      } catch (e) {
+        console.error("Product delete sync failed", e);
+      }
+    }
+
+    toast({
+      title: "Product deleted",
+      description: "Product has been removed safely",
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -515,33 +547,26 @@ export default function Products() {
     setEditingProduct(null);
 
     try {
+      const now = Date.now();
+
       if (editingProduct) {
         const updatedProduct: Product = {
           ...editingProduct,
           ...formData,
-          updatedAt: Date.now(),
-          isSynced: false,
+          updatedAt: now,
         };
 
-        // Compute new local state from current closure
-        const newLocalState = products.map((p) =>
+        const updated = productsRef.current.map((p) =>
           p.id === editingProduct.id ? updatedProduct : p
         );
 
-        // Write to local FIRST (immediate UI update)
-        await setProducts(newLocalState);
+        await setProducts(updated);
 
-        // Try Firebase write
         if (mode === "online" && user) {
           try {
             await writeProductOnline(user.uid, updatedProduct);
-            // Mark synced in the computed state (avoids stale closure)
-            const syncedState = newLocalState.map((p) =>
-              p.id === updatedProduct.id ? { ...p, isSynced: true } : p
-            );
-            await setProducts(syncedState);
           } catch (e) {
-            console.error("Product online write failed (will retry on reconnect)", e);
+            console.error("Product update sync failed", e);
           }
         }
 
@@ -554,28 +579,19 @@ export default function Products() {
           id: nanoid(),
           ...formData,
           addCount: 0,
-          updatedAt: Date.now(),
+          updatedAt: now,
           isDeleted: false,
-          isSynced: false,
         };
 
-        // Compute new local state from current closure
-        const newLocalState = [...products, newProduct];
+        const updated = [...productsRef.current, newProduct];
 
-        // Write to local FIRST (immediate UI update)
-        await setProducts(newLocalState);
+        await setProducts(updated);
 
-        // Try Firebase write
         if (mode === "online" && user) {
           try {
             await writeProductOnline(user.uid, newProduct);
-            // Mark synced in the computed state (avoids stale closure)
-            const syncedState = newLocalState.map((p) =>
-              p.id === newProduct.id ? { ...p, isSynced: true } : p
-            );
-            await setProducts(syncedState);
           } catch (e) {
-            console.error("Product online write failed (will retry on reconnect)", e);
+            console.error("Product add sync failed", e);
           }
         }
 
@@ -596,7 +612,7 @@ export default function Products() {
   };
 
   const getCategoryName = (id: string) =>
-    visibleCategories.find((c) => c.id === id)?.name || "Unknown";
+    categories.find((c: Category) => c.id === id)?.name || "Unknown";
 
   if (isLoading) {
     return (
@@ -610,23 +626,17 @@ export default function Products() {
     <div className="p-6 lg:p-8 space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-semibold">Products</h1>
-
         <Button
           className="w-full sm:w-auto"
           onClick={() => {
             if (visibleCategories.length === 0) {
-              toast({
-                variant: "destructive",
-                title: "No category found",
-                description: "Please add a category before adding products",
-              });
+              toast({ variant: "destructive", title: "No category found", description: "Please add a category before adding products" });
               return;
             }
             handleAdd();
           }}
         >
-          <Plus className="h-5 w-5 mr-2" />
-          Add Product
+          <Plus className="h-5 w-5 mr-2" /> Add Product
         </Button>
       </div>
 
@@ -634,24 +644,9 @@ export default function Products() {
         <Card className="p-12 text-center">
           <Package className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <h3 className="text-lg font-semibold mb-2">No products yet</h3>
-          <p className="text-muted-foreground mb-4">
-            Add a product to start billing
-          </p>
-          <Button
-            onClick={() => {
-              if (visibleCategories.length === 0) {
-                toast({
-                  variant: "destructive",
-                  title: "No category found",
-                  description: "Please add a category first",
-                });
-                return;
-              }
-              handleAdd();
-            }}
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Add Product
+          <p className="text-muted-foreground mb-4">Add a product to start billing</p>
+          <Button onClick={() => { if (visibleCategories.length === 0) { toast({ variant: "destructive", title: "No category found", description: "Please add a category first" }); return; } handleAdd(); }}>
+            <Plus className="h-5 w-5 mr-2" /> Add Product
           </Button>
         </Card>
       ) : (
@@ -660,51 +655,24 @@ export default function Products() {
             <thead>
               <tr className="border-b bg-muted/50">
                 <th className="px-2 sm:px-4 py-2 sm:py-3 text-left">Name</th>
-                <th className="px-2 sm:px-4 py-2 sm:py-3 text-left hidden sm:table-cell">
-                  Category
-                </th>
+                <th className="px-2 sm:px-4 py-2 sm:py-3 text-left hidden sm:table-cell">Category</th>
                 <th className="px-2 sm:px-4 py-2 sm:py-3 text-right">Price</th>
                 <th className="px-2 sm:px-4 py-2 sm:py-3 text-right">Actions</th>
               </tr>
             </thead>
-
             <tbody>
               {visibleProducts.map((product) => (
                 <tr key={product.id} className="border-b">
                   <td className="px-2 sm:px-4 py-3">
-                    <div className="font-medium break-words leading-snug">
-                      {product.name}
-                    </div>
-                    <div className="text-xs text-muted-foreground sm:hidden">
-                      {getCategoryName(product.categoryId)}
-                    </div>
+                    <div className="font-medium break-words leading-snug">{product.name}</div>
+                    <div className="text-xs text-muted-foreground sm:hidden">{getCategoryName(product.categoryId)}</div>
                   </td>
-
-                  <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">
-                    {getCategoryName(product.categoryId)}
-                  </td>
-
-                  <td className="px-2 sm:px-4 py-3 text-right font-semibold whitespace-nowrap">
-                    ₹{product.price.toFixed(2)}
-                  </td>
-
+                  <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{getCategoryName(product.categoryId)}</td>
+                  <td className="px-2 sm:px-4 py-3 text-right font-semibold whitespace-nowrap">₹{product.price.toFixed(2)}</td>
                   <td className="px-2 sm:px-4 py-3 text-right">
                     <div className="flex justify-end gap-1 sm:gap-2">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(product)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDeleteProduct(product)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => handleEdit(product)}><Edit className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteProduct(product)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
                   </td>
                 </tr>
@@ -714,67 +682,19 @@ export default function Products() {
         </Card>
       )}
 
-      {/* ADD / EDIT MODAL */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingProduct ? "Edit Product" : "Add Product"}
-            </DialogTitle>
-          </DialogHeader>
-
+          <DialogHeader><DialogTitle>{editingProduct ? "Edit Product" : "Add Product"}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              placeholder="Product name"
-              value={formData.name}
-              onChange={(e) =>
-                setFormData({ ...formData, name: e.target.value })
-              }
-              required
-            />
-
-            <Select
-              value={formData.categoryId}
-              onValueChange={(v) =>
-                setFormData({ ...formData, categoryId: v })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {visibleCategories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
+            <Input placeholder="Product name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
+            <Select value={formData.categoryId} onValueChange={(v) => setFormData({ ...formData, categoryId: v })}>
+              <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+              <SelectContent>{visibleCategories.map((c) => (<SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>))}</SelectContent>
             </Select>
-
-            <Input
-              type="number"
-              step="0.01"
-              value={formData.price}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  price: parseFloat(e.target.value) || 0,
-                })
-              }
-              required
-            />
-
+            <Input type="number" step="0.01" value={formData.price} onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })} required />
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">
-                {editingProduct ? "Update" : "Add"}
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+              <Button type="submit">{editingProduct ? "Update" : "Add"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -788,44 +708,14 @@ export default function Products() {
         onConfirm={() => {
           const p = deleteProduct;
           setDeleteProduct(null);
-
           if (!p) return;
-
-          const deletedProduct: Product = {
-            ...p,
-            isDeleted: true,
-            deletedAt: Date.now(),
-            updatedAt: Date.now(),
-            isSynced: false,
-          };
-
-          // Compute new local state from current closure
-          const newLocalState = products.map((x) =>
-            x.id === p.id ? deletedProduct : x
-          );
-
+          const now = Date.now();
+          const deletedProduct: Product = { ...p, isDeleted: true, deletedAt: now, updatedAt: now };
+          const updated = productsRef.current.map((x) => x.id === p.id ? deletedProduct : x);
           (async () => {
-            // Write to local FIRST (immediate UI update)
-            await setProducts(newLocalState);
-
-            // Try Firebase write
-            if (mode === "online" && user) {
-              try {
-                await writeProductOnline(user.uid, deletedProduct);
-                // Mark synced in the computed state (avoids stale closure)
-                const syncedState = newLocalState.map((x) =>
-                  x.id === deletedProduct.id ? { ...x, isSynced: true } : x
-                );
-                await setProducts(syncedState);
-              } catch (e) {
-                console.error("Product delete sync failed (will retry on reconnect)", e);
-              }
-            }
-
-            toast({
-              title: "Product deleted",
-              description: "Product removed safely",
-            });
+            await setProducts(updated);
+            if (mode === "online" && user) { try { await writeProductOnline(user.uid, deletedProduct); } catch (e) { console.error("Product delete sync failed", e); } }
+            toast({ title: "Product deleted", description: "Product removed safely" });
           })();
         }}
       />

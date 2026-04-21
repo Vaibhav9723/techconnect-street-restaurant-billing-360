@@ -290,8 +290,9 @@
 //   );
 // }
 
-// client/src/pages/categories.tsx
-import { useState, useMemo } from "react";
+// ─── FILE: client/src/pages/categories.tsx ─────────────────────────
+
+import { useState, useMemo, useRef } from "react";
 import { useCategories } from "@/hooks/usePOSData";
 import { useProducts } from "@/hooks/usePOSData";
 import { usePOSMode } from "@/context/POSModeContext";
@@ -316,24 +317,25 @@ import { useToast } from "@/hooks/use-toast";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export default function Categories() {
+  const { data: products } = useProducts();
+  const { toast } = useToast();
   const mode = usePOSMode();
   const { user } = useFirebaseAuth();
 
-  const { data: products } = useProducts();
-  const { toast } = useToast();
-
   const {
     data: categories,
-    setData: setCategoriesData,
+    setData: setCategories,
     isLoading,
   } = useCategories();
+
+  const categoriesRef = useRef(categories);
+  categoriesRef.current = categories;
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState<InsertCategory>({ name: "" });
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  /* ================= FILTER (SOFT DELETE) ================= */
   const visibleCategories = useMemo(
     () => categories.filter((c) => !c.isDeleted),
     [categories]
@@ -355,11 +357,7 @@ export default function Categories() {
     e.preventDefault();
 
     if (!formData.name.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Invalid input",
-        description: "Please enter a category name",
-      });
+      toast({ variant: "destructive", title: "Invalid input", description: "Please enter a category name" });
       return;
     }
 
@@ -368,104 +366,39 @@ export default function Categories() {
     setFormData({ name: "" });
 
     try {
+      const now = Date.now();
+
       if (editingCategory) {
-        const updatedCategory: Category = {
-          ...editingCategory,
-          name: formData.name,
-          updatedAt: Date.now(),
-          isSynced: false,
-        };
-
-        // Compute new local state from current closure
-        const newLocalState = categories.map((c) =>
-          c.id === editingCategory.id ? updatedCategory : c
-        );
-
-        // Write to local FIRST (immediate UI update)
-        await setCategoriesData(newLocalState);
-
-        // Try Firebase write
-        if (mode === "online" && user) {
-          try {
-            await writeCategoryOnline(user.uid, updatedCategory);
-            // Mark synced in the computed state (avoids stale closure)
-            const syncedState = newLocalState.map((c) =>
-              c.id === updatedCategory.id ? { ...c, isSynced: true } : c
-            );
-            await setCategoriesData(syncedState);
-          } catch (e) {
-            console.error("Category online write failed (will retry on reconnect)", e);
-          }
-        }
-
-        toast({
-          title: "Category updated",
-          description: `${formData.name} has been updated`,
-        });
+        const updatedCategory: Category = { ...editingCategory, name: formData.name, updatedAt: now };
+        const updated = categoriesRef.current.map((c) => c.id === editingCategory.id ? updatedCategory : c);
+        await setCategories(updated);
+        if (mode === "online" && user) { try { await writeCategoryOnline(user.uid, updatedCategory); } catch (e) { console.error("Category update sync failed", e); } }
+        toast({ title: "Category updated", description: `${formData.name} has been updated` });
       } else {
-        const newCategory: Category = {
-          id: nanoid(),
-          name: formData.name,
-          updatedAt: Date.now(),
-          isSynced: false,
-        };
-
-        // Compute new local state from current closure
-        const newLocalState = [...categories, newCategory];
-
-        // Write to local FIRST (immediate UI update)
-        await setCategoriesData(newLocalState);
-
-        // Try Firebase write
-        if (mode === "online" && user) {
-          try {
-            await writeCategoryOnline(user.uid, newCategory);
-            // Mark synced in the computed state (avoids stale closure)
-            const syncedState = newLocalState.map((c) =>
-              c.id === newCategory.id ? { ...c, isSynced: true } : c
-            );
-            await setCategoriesData(syncedState);
-          } catch (e) {
-            console.error("Category online write failed (will retry on reconnect)", e);
-          }
-        }
-
-        toast({
-          title: "Category added",
-          description: `${formData.name} has been added`,
-        });
+        const newCategory: Category = { id: nanoid(), name: formData.name, updatedAt: now, isDeleted: false };
+        const updated = [...categoriesRef.current, newCategory];
+        await setCategories(updated);
+        if (mode === "online" && user) { try { await writeCategoryOnline(user.uid, newCategory); } catch (e) { console.error("Category add sync failed", e); } }
+        toast({ title: "Category added", description: `${formData.name} has been added` });
       }
     } catch (err) {
-      toast({
-        variant: "destructive",
-        title: "Failed",
-        description: "Something went wrong",
-      });
+      toast({ variant: "destructive", title: "Failed", description: "Something went wrong" });
     }
   };
 
   const getProductCount = (categoryId: string) => {
-    return products.filter(
-      (p) => p.categoryId === categoryId && !p.isDeleted
-    ).length;
+    return products.filter((p) => p.categoryId === categoryId && !p.isDeleted).length;
   };
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-muted-foreground">Loading categories...</div>
-      </div>
-    );
+    return (<div className="flex items-center justify-center h-96"><div className="text-muted-foreground">Loading categories...</div></div>);
   }
 
   return (
     <div className="p-6 lg:p-8 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Categories</h1>
-        <Button onClick={handleAdd} data-testid="button-add-category">
-          <Plus className="h-5 w-5 mr-2" />
-          Add Category
-        </Button>
+        <Button onClick={handleAdd} data-testid="button-add-category"><Plus className="h-5 w-5 mr-2" />Add Category</Button>
       </div>
 
       {visibleCategories.length === 0 ? (
@@ -473,13 +406,8 @@ export default function Categories() {
           <div className="text-center">
             <FolderOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">No categories yet</h3>
-            <p className="text-muted-foreground mb-4">
-              Create categories to organize your products
-            </p>
-            <Button onClick={handleAdd}>
-              <Plus className="h-5 w-5 mr-2" />
-              Add Category
-            </Button>
+            <p className="text-muted-foreground mb-4">Create categories to organize your products</p>
+            <Button onClick={handleAdd}><Plus className="h-5 w-5 mr-2" />Add Category</Button>
           </div>
         </Card>
       ) : (
@@ -495,32 +423,13 @@ export default function Categories() {
               </thead>
               <tbody>
                 {visibleCategories.map((category) => (
-                  <tr
-                    key={category.id}
-                    className="border-b hover-elevate"
-                    data-testid={`category-row-${category.id}`}
-                  >
+                  <tr key={category.id} className="border-b hover-elevate" data-testid={`category-row-${category.id}`}>
                     <td className="px-4 py-3 font-medium">{category.name}</td>
-                    <td className="px-4 py-3 text-right text-sm text-muted-foreground">
-                      {getProductCount(category.id)} item{getProductCount(category.id) !== 1 ? "s" : ""}
-                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-muted-foreground">{getProductCount(category.id)} item{getProductCount(category.id) !== 1 ? "s" : ""}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(category)}
-                          data-testid={`button-edit-${category.id}`}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteId(category.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleEdit(category)} data-testid={`button-edit-${category.id}`}><Edit className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(category.id)}><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     </td>
                   </tr>
@@ -532,46 +441,16 @@ export default function Categories() {
       )}
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent
-          data-testid="dialog-category-form"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-          onCloseAutoFocus={(e) => e.preventDefault()}
-        >
-          <DialogHeader>
-            <DialogTitle>
-              {editingCategory ? "Edit Category" : "Add Category"}
-            </DialogTitle>
-          </DialogHeader>
-
+        <DialogContent data-testid="dialog-category-form" onOpenAutoFocus={(e) => e.preventDefault()} onCloseAutoFocus={(e) => e.preventDefault()}>
+          <DialogHeader><DialogTitle>{editingCategory ? "Edit Category" : "Add Category"}</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">
-                Category Name <span className="text-destructive">*</span>
-              </label>
-              <Input
-                value={formData.name}
-                onChange={(e) => setFormData({ name: e.target.value })}
-                placeholder="Enter category name"
-                className="h-12"
-                required
-              />
+              <label className="text-sm font-medium mb-2 block">Category Name <span className="text-destructive">*</span></label>
+              <Input value={formData.name} onChange={(e) => setFormData({ name: e.target.value })} placeholder="Enter category name" className="h-12" required />
             </div>
-
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setIsDialogOpen(false);
-                  setEditingCategory(null);
-                  setFormData({ name: "" });
-                }}
-              >
-                Cancel
-              </Button>
-              <Button type="submit">
-                {editingCategory ? "Update" : "Add"}
-              </Button>
+              <Button type="button" variant="outline" onClick={() => { setIsDialogOpen(false); setEditingCategory(null); setFormData({ name: "" }); }}>Cancel</Button>
+              <Button type="submit">{editingCategory ? "Update" : "Add"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -585,62 +464,21 @@ export default function Categories() {
         onConfirm={() => {
           const id = deleteId;
           setDeleteId(null);
-
           if (!id) return;
-
-          const productsInCategory = products.filter(
-            (p) => p.categoryId === id && !p.isDeleted
-          );
-
+          const productsInCategory = products.filter((p) => p.categoryId === id && !p.isDeleted);
           if (productsInCategory.length > 0) {
-            toast({
-              variant: "destructive",
-              title: "Cannot delete",
-              description: `This category has ${productsInCategory.length} product(s). Remove them first.`,
-            });
+            toast({ variant: "destructive", title: "Cannot delete", description: `This category has ${productsInCategory.length} product(s). Remove them first.` });
             return;
           }
-
-          // Find the category from FULL list (including soft-deleted) to preserve all fields
-          const category = categories.find((c) => c.id === id);
+          const category = categoriesRef.current.find((c) => c.id === id);
           if (!category) return;
-
-          // Soft delete: mark isDeleted=true
-          const softDeleted: Category = {
-            ...category,
-            isDeleted: true,
-            deletedAt: Date.now(),
-            updatedAt: Date.now(),
-            isSynced: false,
-          };
-
-          // Compute new local state from current closure
-          const newLocalState = categories.map((c) =>
-            c.id === id ? softDeleted : c
-          );
-
           (async () => {
-            // Write to local FIRST (immediate UI update)
-            await setCategoriesData(newLocalState);
-
-            // Try Firebase write
-            if (mode === "online" && user) {
-              try {
-                await writeCategoryOnline(user.uid, softDeleted);
-                // Mark synced in the computed state (avoids stale closure)
-                const syncedState = newLocalState.map((c) =>
-                  c.id === softDeleted.id ? { ...c, isSynced: true } : c
-                );
-                await setCategoriesData(syncedState);
-              } catch (e) {
-                console.error("Category delete sync failed (will retry on reconnect)", e);
-              }
-            }
-
-            toast({
-              title: "Category deleted",
-              description: "The category has been removed",
-            });
+            const now = Date.now();
+            const deletedCategory: Category = { ...category, isDeleted: true, deletedAt: now, updatedAt: now };
+            const updated = categoriesRef.current.map((c) => c.id === id ? deletedCategory : c);
+            await setCategories(updated);
+            if (mode === "online" && user) { try { await writeCategoryOnline(user.uid, deletedCategory); } catch (e) { console.error("Category delete sync failed", e); } }
+            toast({ title: "Category deleted", description: "The category has been removed" });
           })();
         }}
       />

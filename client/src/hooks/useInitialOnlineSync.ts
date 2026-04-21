@@ -109,6 +109,8 @@
 //   }, [mode, user,bills.data.length]);
 // }
 
+// ─── FILE: client/src/hooks/useInitialOnlineSync.ts ────────────────
+
 import { useEffect, useRef, useCallback } from "react";
 import { usePOSMode } from "@/context/POSModeContext";
 import { useFirebaseAuth } from "@/hooks/useFirebaseAuth";
@@ -127,7 +129,7 @@ import {
 } from "@/hooks/usePOSData";
 
 import { mergeById } from "@/services/sync/mergeById";
-import { flushUnsyncedData, markItemsSynced } from "@/services/sync/flushQueue";
+import { flushUnsyncedData } from "@/services/sync/flushQueue";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { Product, Category, Bill, Settings } from "@/types/schema";
 
@@ -143,7 +145,6 @@ export function useInitialOnlineSync() {
   const bills = useBills();
   const settings = useSettings();
 
-  // Refs to avoid stale closures in async functions
   const productsRef = useRef(products);
   productsRef.current = products;
   const categoriesRef = useRef(categories);
@@ -164,71 +165,45 @@ export function useInitialOnlineSync() {
     const bRef = billsRef.current;
     const sRef = settingsRef.current;
 
-    // Wait for all data to finish loading before syncing
     if (pRef.isLoading || cRef.isLoading || bRef.isLoading || sRef.isLoading) {
       setTimeout(runFullSync, RETRY_DELAY_MS);
       return;
     }
 
-    // Skip if data failed to load
     if (pRef.error || cRef.error || bRef.error || sRef.error) {
-      console.error("Cannot sync: data load error", {
-        products: pRef.error,
-        categories: cRef.error,
-        bills: bRef.error,
-        settings: sRef.error,
-      });
+      console.error("Cannot sync: data load error");
       return;
     }
 
     syncingRef.current = true;
 
     try {
-      console.log("🔄 Full sync started");
       const uid = user.uid;
 
-      // ─── 1. Fetch all remote data ───────────────────────────────
+      // 1. Fetch remote
       const [remoteProducts, remoteCategories, remoteBills, remoteSettings] =
         await Promise.all([
-          fetchProducts(uid).catch((e) => {
-            console.error("Fetch products failed", e);
-            return [] as Product[];
-          }),
-          fetchCategories(uid).catch((e) => {
-            console.error("Fetch categories failed", e);
-            return [] as Category[];
-          }),
-          fetchBillsAfter(uid, null).catch((e) => {
-            console.error("Fetch bills failed", e);
-            return [] as Bill[];
-          }),
-          fetchSettings(uid).catch((e) => {
-            console.error("Fetch settings failed", e);
-            return null as Settings | null;
-          }),
+          fetchProducts(uid).catch(() => [] as Product[]),
+          fetchCategories(uid).catch(() => [] as Category[]),
+          fetchBillsAfter(uid, null).catch(() => [] as Bill[]),
+          fetchSettings(uid).catch(() => null as Settings | null),
         ]);
 
-      // ─── 2. Merge local + remote (id + updatedAt based) ─────────
-      const localProducts = pRef.data;
-      const localCategories = cRef.data;
-      const localBills = bRef.data;
-      const localSettings = sRef.data;
+      // 2. Merge local + remote by id + updatedAt
+      const mergedProducts = mergeById(pRef.data, remoteProducts);
+      const mergedCategories = mergeById(cRef.data, remoteCategories);
+      const mergedBills = mergeById(bRef.data, remoteBills);
 
-      const mergedProducts = mergeById(localProducts, remoteProducts);
-      const mergedCategories = mergeById(localCategories, remoteCategories);
-      const mergedBills = mergeById(localBills, remoteBills);
-
-      // Settings: latest updatedAt wins
-      let mergedSettings = localSettings;
+      let mergedSettings = sRef.data;
       if (remoteSettings) {
-        const localTime = localSettings.updatedAt ?? 0;
+        const localTime = sRef.data.updatedAt ?? 0;
         const remoteTime = remoteSettings.updatedAt ?? 0;
         if (remoteTime > localTime) {
           mergedSettings = { ...remoteSettings };
         }
       }
 
-      // ─── 3. Save merged data to local ──────────────────────────
+      // 3. Save merged to local
       await Promise.all([
         pRef.setData(mergedProducts),
         cRef.setData(mergedCategories),
@@ -236,8 +211,8 @@ export function useInitialOnlineSync() {
         sRef.replaceFromFirebase(mergedSettings),
       ]);
 
-      // ─── 4. Flush: upload items missing/newer on local side ─────
-      const flushResult = await flushUnsyncedData(
+      // 4. Flush: upload items missing from remote or newer (id + updatedAt)
+      await flushUnsyncedData(
         uid,
         {
           products: mergedProducts,
@@ -253,39 +228,6 @@ export function useInitialOnlineSync() {
         }
       );
 
-      // ─── 5. Mark only successfully uploaded items as isSynced ───
-      const syncedPIds = new Set(flushResult.syncedProductIds);
-      const syncedCIds = new Set(flushResult.syncedCategoryIds);
-      const syncedBIds = new Set(flushResult.syncedBillIds);
-
-      const markPromises: Promise<void>[] = [];
-
-      if (syncedPIds.size > 0) {
-        markPromises.push(
-          pRef.setData(markItemsSynced(productsRef.current.data, syncedPIds))
-        );
-      }
-      if (syncedCIds.size > 0) {
-        markPromises.push(
-          cRef.setData(markItemsSynced(categoriesRef.current.data, syncedCIds))
-        );
-      }
-      if (syncedBIds.size > 0) {
-        markPromises.push(
-          bRef.setData(markItemsSynced(billsRef.current.data, syncedBIds))
-        );
-      }
-      if (flushResult.settingsSynced) {
-        markPromises.push(
-          sRef.replaceFromFirebase({
-            ...settingsRef.current.data,
-            isSynced: true,
-          })
-        );
-      }
-
-      await Promise.all(markPromises);
-
       console.log("✅ Full sync completed");
     } catch (error) {
       console.error("❌ Full sync failed", error);
@@ -294,14 +236,12 @@ export function useInitialOnlineSync() {
     }
   }, [user]);
 
-  // Sync on initial online mode
   useEffect(() => {
     if (mode === "online" && user) {
       runFullSync();
     }
   }, [mode, user, runFullSync]);
 
-  // Sync on reconnect
   useOnlineStatus(() => {
     if (modeRef.current === "online" || userProfile?.posType === "online") {
       runFullSync();
