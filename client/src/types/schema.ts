@@ -1,4 +1,3 @@
-
 // export interface Product {
 //   id: string;
 //   name: string;
@@ -6,10 +5,9 @@
 //   categoryId: string;
 //   addCount?: number;
 //   updatedAt: number;
-//   // 🔒 soft delete (future-proof)
-//   isSynced?: boolean;
 //   isDeleted?: boolean;
 //   deletedAt?: number;
+//   isSynced?: boolean;
 // }
 
 // export interface Category {
@@ -56,12 +54,12 @@
 //   paymentMode: "cash" | "online" | "both";
 //   onlineAmount?: number;
 //   cashAmount?: number;
-//   customerName?: string; 
+//   customerName?: string;
 //   customerPhone?: string;
-//   billType?: BillType;     
-//   tableId?: string; 
-//   isSynced?: boolean;
+//   billType?: BillType;
+//   tableId?: string;
 //   updatedAt?: number;
+//   isSynced?: boolean;
 // }
 
 // export type BusinessMode = "vendor" | "restaurant";
@@ -89,7 +87,6 @@
 // export interface CustomerProfile {
 //   phone: string;
 //   name?: string;
-
 //   totalBills: number;
 //   totalSpend: number;
 //   lastVisitAt?: string;
@@ -99,17 +96,13 @@
 // export interface CustomerOffer {
 //   id: string;
 //   type: "BILL_AMOUNT" | "REPEAT_CUSTOMER";
-
 //   valueType: "PERCENT" | "FLAT";
 //   value: number;
-
 //   minNextBill?: number;
-
 //   generatedFromBillId: string;
 //   generatedAt: string;
-
 //   validDays: number;
-//   expiresAt: string; 
+//   expiresAt: string;
 //   redeemed: boolean;
 //   redeemedBillId?: string;
 // }
@@ -117,7 +110,6 @@
 // export interface OfferSettings {
 //   enabled: boolean;
 //   applyMode?: "AUTO" | "MANUAL";
-
 //   billAmountOffer: {
 //     enabled: boolean;
 //     minBillAmount: number;
@@ -126,24 +118,23 @@
 //     discountValue: number;
 //     validDays: number;
 //   };
-
 //   repeatCustomerOffer: {
 //     enabled: boolean;
 //     repeatCount: number;
 //     discountType: "PERCENT" | "FLAT";
 //     discountValue: number;
 //   };
-
 //   footerText: string;
 //   feedbackText: string;
 //   feedbackLink: string;
 // }
 
-
 // export interface TokenCounter {
 //   date: string;
 //   count: number;
 // }
+
+
 export interface Product {
   id: string;
   name: string;
@@ -151,18 +142,18 @@ export interface Product {
   categoryId: string;
   addCount?: number;
   updatedAt: number;
+  // soft delete
   isDeleted?: boolean;
   deletedAt?: number;
-  isSynced?: boolean;
 }
 
 export interface Category {
   id: string;
   name: string;
   updatedAt: number;
+  // soft delete
   isDeleted?: boolean;
   deletedAt?: number;
-  isSynced?: boolean;
 }
 
 export interface InsertCategory {
@@ -200,12 +191,11 @@ export interface Bill {
   paymentMode: "cash" | "online" | "both";
   onlineAmount?: number;
   cashAmount?: number;
-  customerName?: string;
+  customerName?: string; 
   customerPhone?: string;
-  billType?: BillType;
-  tableId?: string;
+  billType?: BillType;     
+  tableId?: string; 
   updatedAt?: number;
-  isSynced?: boolean;
 }
 
 export type BusinessMode = "vendor" | "restaurant";
@@ -227,12 +217,12 @@ export interface Settings {
   updatedAt?: number;
   tableCount?: number;
   gstNumber?: string;
-  isSynced?: boolean;
 }
 
 export interface CustomerProfile {
   phone: string;
   name?: string;
+
   totalBills: number;
   totalSpend: number;
   lastVisitAt?: string;
@@ -242,13 +232,17 @@ export interface CustomerProfile {
 export interface CustomerOffer {
   id: string;
   type: "BILL_AMOUNT" | "REPEAT_CUSTOMER";
+
   valueType: "PERCENT" | "FLAT";
   value: number;
+
   minNextBill?: number;
+
   generatedFromBillId: string;
   generatedAt: string;
+
   validDays: number;
-  expiresAt: string;
+  expiresAt: string; 
   redeemed: boolean;
   redeemedBillId?: string;
 }
@@ -256,6 +250,7 @@ export interface CustomerOffer {
 export interface OfferSettings {
   enabled: boolean;
   applyMode?: "AUTO" | "MANUAL";
+
   billAmountOffer: {
     enabled: boolean;
     minBillAmount: number;
@@ -264,16 +259,19 @@ export interface OfferSettings {
     discountValue: number;
     validDays: number;
   };
+
   repeatCustomerOffer: {
     enabled: boolean;
     repeatCount: number;
     discountType: "PERCENT" | "FLAT";
     discountValue: number;
   };
+
   footerText: string;
   feedbackText: string;
   feedbackLink: string;
 }
+
 
 export interface TokenCounter {
   date: string;

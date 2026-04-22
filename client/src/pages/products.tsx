@@ -534,6 +534,21 @@ export default function Products() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const normalizedName = formData.name.trim().toLowerCase();
+    const duplicate = productsRef.current.find(
+      (p) =>
+        !p.isDeleted &&
+        p.categoryId === formData.categoryId &&
+        p.name.toLowerCase() === normalizedName &&
+        p.id !== editingProduct?.id
+    );
+    
+if (duplicate) {
+  toast({ variant: "destructive", title: "Duplicate product name",
+    description: `A product named "${duplicate.name}" already exists in this category...` });
+  return;  // ← prevent save
+}
+
     if (!formData.name || !formData.categoryId || formData.price <= 0) {
       toast({
         variant: "destructive",

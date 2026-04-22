@@ -355,6 +355,18 @@ export default function Categories() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const normalizedName = formData.name.trim().toLowerCase();
+  const duplicate = categoriesRef.current.find(
+    (c) =>
+      !c.isDeleted &&
+      c.name.toLowerCase() === normalizedName &&
+      c.id !== editingCategory?.id
+  );
+if (duplicate) {
+  toast({ variant: "destructive", title: "Duplicate category name",
+    description: `A category named "${duplicate.name}" already exists...` });
+  return;  // ← prevent save
+}
 
     if (!formData.name.trim()) {
       toast({ variant: "destructive", title: "Invalid input", description: "Please enter a category name" });
